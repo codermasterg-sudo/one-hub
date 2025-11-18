@@ -1,0 +1,148 @@
+version: "3.8"
+
+services:
+  one-hub:
+    image: martialbe/one-api:latest
+    container_name: one-hub
+    restart: always
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      - ./data/app:/data
+      - ./logs:/app/logs
+    environment:
+      # 基础配置
+      - TZ=${TZ:-Asia/Shanghai}
+      - GIN_MODE=${GIN_MODE:-release}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - PORT=3000
+      
+      # 安全配置
+      - SESSION_SECRET=${SESSION_SECRET}
+      - USER_TOKEN_SECRET=${USER_TOKEN_SECRET}
+      - HASHIDS_SALT=${HASHIDS_SALT:-}
+      
+      # 数据库配置
+      - SQL_DSN=${SQL_DSN}
+      - SQL_MAX_IDLE_CONNS=${SQL_MAX_IDLE_CONNS:-100}
+      - SQL_MAX_OPEN_CONNS=${SQL_MAX_OPEN_CONNS:-1000}
+      - SQL_CONN_MAX_LIFETIME=${SQL_CONN_MAX_LIFETIME:-60}
+      
+      # Redis 配置
+      - REDIS_CONN_STRING=${REDIS_CONN_STRING}
+      - REDIS_DB=${REDIS_DB:-0}
+      
+      # 性能优化
+      - MEMORY_CACHE_ENABLED=${MEMORY_CACHE_ENABLED:-true}
+      - SYNC_FREQUENCY=${SYNC_FREQUENCY:-300}
+      - BATCH_UPDATE_ENABLED=${BATCH_UPDATE_ENABLED:-true}
+      - BATCH_UPDATE_INTERVAL=${BATCH_UPDATE_INTERVAL:-5}
+      
+      # 限流配置
+      - GLOBAL_API_RATE_LIMIT=${GLOBAL_API_RATE_LIMIT:-180}
+      - GLOBAL_WEB_RATE_LIMIT=${GLOBAL_WEB_RATE_LIMIT:-100}
+      - RELAY_TIMEOUT=${RELAY_TIMEOUT:-120}
+      - CONNECT_TIMEOUT=${CONNECT_TIMEOUT:-5}
+      
+      # 渠道管理
+      - CHANNEL_TEST_FREQUENCY=${CHANNEL_TEST_FREQUENCY:-60}
+      - CHANNEL_UPDATE_FREQUENCY=${CHANNEL_UPDATE_FREQUENCY:-1440}
+      - POLLING_INTERVAL=${POLLING_INTERVAL:-2}
+      
+      # 价格管理
+      - AUTO_PRICE_UPDATES=${AUTO_PRICE_UPDATES:-true}
+      - AUTO_PRICE_UPDATES_MODE=${AUTO_PRICE_UPDATES_MODE:-system}
+      - AUTO_PRICE_UPDATES_INTERVAL=${AUTO_PRICE_UPDATES_INTERVAL:-1440}
+      - UPDATE_PRICE_SERVICE=${UPDATE_PRICE_SERVICE:-}
+      
+      # 高级配置
+      - DISABLE_TOKEN_ENCODERS=${DISABLE_TOKEN_ENCODERS:-false}
+      - TIKTOKEN_CACHE_DIR=${TIKTOKEN_CACHE_DIR:-}
+      - TRUSTED_HEADER=${TRUSTED_HEADER:-}
+      
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:3000/api/status | grep -o '\"success\":\\s*true'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - one-hub-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  mysql:
+    image: mysql:8.2
+    container_name: one-hub-mysql
+    restart: always
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --max_connections=1000
+      --max_allowed_packet=256M
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+      - ./scripts/mysql-init:/docker-entrypoint-initdb.d
+    environment:
+      - TZ=${TZ:-Asia/Shanghai}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_USER=oneapi
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=one-api
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - one-hub-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    image: redis:7-alpine
+    container_name: one-hub-redis
+    restart: always
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - one-hub-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+networks:
+  one-hub-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data:
+  app-data:

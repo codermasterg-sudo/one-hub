@@ -2,22 +2,27 @@ version: "3.4"
 
 services:
   one-hub:
-    image: martialbe/one-api:latest
+    build:
+      context: ./
+      dockerfile: Dockerfile
     container_name: one-hub
     restart: always
     ports:
       - "3000:3000"
     volumes:
       - ./data:/data
+#      - ./config.dev.yaml:/app/config.yaml:ro
     environment:
-      - SQL_DSN=oneapi:123456@tcp(db:3306)/one-api # 修改此行，或注释掉以使用 SQLite 作为数据库
+      - SQL_DSN=oneapi:9AV28f1G+RZqZhbbKLXMffdbgSi+0s05yunXJOfjn9k=@tcp(db:3306)/one-api # 修改此行，或注释掉以使用 SQLite 作为数据库
       - REDIS_CONN_STRING=redis://redis # redis
-      - SESSION_SECRET=random_string # 修改为随机字符串
-      - USER_TOKEN_SECRET=random_string # 修改为随机字符串,32位以上
+      - SESSION_SECRET=wOcZ8RNoZ26rB
+      - PYGrYP+eD+yZOZYTXCnsDDSf79HOMI= # 修改为随机字符串
+      - USER_TOKEN_SECRET=5uTXoaH4HSFQ5cQsPQ9FeTPS/b+kXGfPvrbq0bwCPz0= # 修改为随机字符串,32位以上
+      - UPDATE_PRICE_SERVICE=https://raw.githubusercontent.com/MartialBE/one-api/prices/prices.json
       - TZ=Asia/Shanghai
       # - HASHIDS_SALT=random_string # 可空，建议设置，字符串元素不能重复
     #      - NODE_TYPE=slave  # 多机部署时从节点取消注释该行
-    #      - SYNC_FREQUENCY=60  # 需要定期从数据库加载数据时取消注释该行
+      - SYNC_FREQUENCY=60  # 需要定期从数据库加载数据时取消注释该行
     #      - FRONTEND_BASE_URL=https://openai.justsong.cn  # 多机部署时从节点取消注释该行
     depends_on:
       - redis
@@ -44,10 +49,10 @@ services:
     volumes:
       - ./data/mysql:/var/lib/mysql # 挂载目录，持久化存储
     ports:
-      - "3306:3306"
+      - "8306:3306"
     environment:
       TZ: Asia/Shanghai # 设置时区
-      MYSQL_ROOT_PASSWORD: "OneAPI@justsong" # 设置 root 用户的密码
+      MYSQL_ROOT_PASSWORD: "7NTil0C4k7eShcsN4lYQ8HAy2eyDAJpfVjgKQEBaWa8=" # 设置 root 用户的密码
       MYSQL_USER: oneapi # 创建专用用户
-      MYSQL_PASSWORD: "123456" # 设置专用用户密码
+      MYSQL_PASSWORD: "9AV28f1G+RZqZhbbKLXMffdbgSi+0s05yunXJOfjn9k=" # 设置专用用户密码
       MYSQL_DATABASE: one-api # 自动创建数据库
