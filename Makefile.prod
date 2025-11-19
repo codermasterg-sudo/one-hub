@@ -3,12 +3,6 @@
 # 默认目标
 .DEFAULT_GOAL := help
 
-# 颜色定义
-RED := \033[0;31m
-GREEN := \033[0;32m
-YELLOW := \033[0;33m
-BLUE := \033[0;34m
-NC := \033[0m
 
 # 项目配置
 PROJECT_NAME := one-hub
@@ -21,52 +15,52 @@ LOGS_DIR := ./logs
 ##@ 帮助信息
 
 help: ## 显示此帮助信息
-	@echo "$(BLUE)╔════════════════════════════════════════════════════════╗$(NC)"
-	@echo "$(BLUE)║          One Hub 生产环境部署管理工具                  ║$(NC)"
-	@echo "$(BLUE)╚════════════════════════════════════════════════════════╝$(NC)"
+	@echo "╔════════════════════════════════════════════════════════╗"
+	@echo "║          One Hub 生产环境部署管理工具                  ║"
+	@echo "╚════════════════════════════════════════════════════════╝"
 	@echo ""
-	@awk 'BEGIN {FS = ":.*##"; printf "使用方式: $(GREEN)make -f Makefile.prod <target>$(NC)\n\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  $(YELLOW)%-20s$(NC) %s\n", $$1, $$2 } /^##@/ { printf "\n$(BLUE)%s$(NC)\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*##"; printf "使用方式: make -f Makefile.prod <target>\n\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  %-20s %s\n", $$1, $$2 } /^##@/ { printf "\n%s\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 ##@ 初始化部署
 
 init: ## 初始化生产环境（首次部署时运行）
-	@echo "$(GREEN)>>> 开始初始化生产环境...$(NC)"
+	@echo ">>> 开始初始化生产环境..."
 	@$(MAKE) -f Makefile.prod check-docker
 	@$(MAKE) -f Makefile.prod create-dirs
 	@$(MAKE) -f Makefile.prod generate-keys
 	@$(MAKE) -f Makefile.prod check-env
-	@echo "$(GREEN)>>> 初始化完成！$(NC)"
-	@echo "$(YELLOW)>>> 配置文件: $(ENV_FILE)$(NC)"
-	@echo "$(YELLOW)>>> 如需修改配置，请编辑该文件后运行: make -f Makefile.prod start$(NC)"
+	@echo ">>> 初始化完成！"
+	@echo ">>> 配置文件: $(ENV_FILE)"
+	@echo ">>> 如需修改配置，请编辑该文件后运行: make -f Makefile.prod start"
 
 check-docker: ## 检查 Docker 和 Docker Compose 是否安装
-	@echo "$(BLUE)>>> 检查 Docker 环境...$(NC)"
-	@command -v docker >/dev/null 2>&1 || { echo "$(RED)错误: 未找到 Docker，请先安装$(NC)"; exit 1; }
-	@command -v docker-compose >/dev/null 2>&1 || { echo "$(RED)错误: 未找到 Docker Compose，请先安装$(NC)"; exit 1; }
-	@docker ps >/dev/null 2>&1 || { echo "$(RED)错误: Docker 未运行或无权限访问$(NC)"; exit 1; }
-	@echo "$(GREEN)✓ Docker 环境检查通过$(NC)"
+	@echo ">>> 检查 Docker 环境..."
+	@command -v docker >/dev/null 2>&1 || { echo "错误: 未找到 Docker，请先安装"; exit 1; }
+	@command -v docker-compose >/dev/null 2>&1 || { echo "错误: 未找到 Docker Compose，请先安装"; exit 1; }
+	@docker ps >/dev/null 2>&1 || { echo "错误: Docker 未运行或无权限访问"; exit 1; }
+	@echo "✓ Docker 环境检查通过"
 
 create-dirs: ## 创建必要的目录
-	@echo "$(BLUE)>>> 创建目录结构...$(NC)"
+	@echo ">>> 创建目录结构..."
 	@mkdir -p $(DATA_DIR)/mysql $(DATA_DIR)/redis $(DATA_DIR)/app $(LOGS_DIR) $(BACKUP_DIR) scripts
 	@chmod 755 $(DATA_DIR) $(LOGS_DIR) $(BACKUP_DIR)
-	@echo "$(GREEN)✓ 目录创建完成$(NC)"
+	@echo "✓ 目录创建完成"
 
 generate-keys: ## 生成安全密钥
-	@echo "$(BLUE)>>> 检查配置文件...$(NC)"
+	@echo ">>> 检查配置文件..."
 	@if [ -f $(ENV_FILE) ]; then \
-		echo "$(RED)╔════════════════════════════════════════════════════════╗$(NC)"; \
-		echo "$(RED)║                  ⚠️ 安全警告 ⚠️                         ║$(NC)"; \
-		echo "$(RED)╚════════════════════════════════════════════════════════╝$(NC)"; \
+		echo "╔════════════════════════════════════════════════════════╗"; \
+		echo "║                  ⚠️ 安全警告 ⚠️                         ║"; \
+		echo "╚════════════════════════════════════════════════════════╝"; \
 		echo ""; \
-		echo "$(YELLOW)检测到已存在配置文件: $(ENV_FILE)$(NC)"; \
+		echo "检测到已存在配置文件: $(ENV_FILE)"; \
 		echo ""; \
-		echo "$(RED)重要提示:$(NC)"; \
+		echo "重要提示:"; \
 		echo "  • 重新生成配置将导致所有用户 Token 失效"; \
 		echo "  • USER_TOKEN_SECRET 一旦修改无法恢复"; \
 		echo "  • 数据库连接信息将被重置"; \
 		echo ""; \
-		echo "$(BLUE)请选择操作:$(NC)"; \
+		echo "请选择操作:"; \
 		echo "  1) 保留现有配置（推荐）"; \
 		echo "  2) 备份后生成新配置"; \
 		echo "  3) 直接覆盖（危险！）"; \
@@ -75,266 +69,217 @@ generate-keys: ## 生成安全密钥
 		choice=$${choice:-1}; \
 		case $$choice in \
 			1) \
-				echo "$(GREEN)✓ 保留现有配置$(NC)"; \
+				echo "✓ 保留现有配置"; \
 				exit 0; \
 				;; \
 			2) \
 				backup_file="$(ENV_FILE).backup.$$(date +%Y%m%d_%H%M%S)"; \
 				cp $(ENV_FILE) $$backup_file; \
-				echo "$(GREEN)✓ 配置已备份到: $$backup_file$(NC)"; \
-				echo "$(YELLOW)>>> 将生成新配置文件$(NC)"; \
+				echo "✓ 配置已备份到: $$backup_file"; \
+				echo ">>> 将生成新配置文件"; \
 				;; \
 			3) \
-				echo "$(RED)>>> 警告: 即将覆盖现有配置！$(NC)"; \
-				read -p "$(YELLOW)请输入 'YES' 确认: $(NC)" confirm; \
+				echo ">>> 警告: 即将覆盖现有配置！"; \
+				read -p "请输入 'YES' 确认: " confirm; \
 				if [ "$$confirm" != "YES" ]; then \
-					echo "$(YELLOW)操作已取消$(NC)"; \
+					echo "操作已取消"; \
 					exit 0; \
 				fi; \
 				;; \
 			*) \
-				echo "$(RED)无效选择，保留现有配置$(NC)"; \
+				echo "无效选择，保留现有配置"; \
 				exit 0; \
 				;; \
 		esac; \
 	fi
-	@echo "$(BLUE)>>> 生成安全密钥...$(NC)"
+	@echo ">>> 生成安全密钥..."
 	@if [ ! -f scripts/generate-env.sh ]; then \
-		cat > scripts/generate-env.sh << 'SCRIPT_EOF'\n\
-#!/bin/bash\n\
-SESSION_SECRET=$$(openssl rand -base64 32)\n\
-USER_TOKEN_SECRET=$$(openssl rand -base64 32)\n\
-MYSQL_ROOT_PASSWORD=$$(openssl rand -base64 32)\n\
-MYSQL_PASSWORD=$$(openssl rand -base64 32)\n\
-\n\
-cat << ENV_EOF\n\
-# One Hub 生产环境配置\n\
-# 生成时间: $$(date)\n\
-# ⚠️ 警告: USER_TOKEN_SECRET 一旦设置不可修改！\n\
-\n\
-# 基础配置\n\
-TZ=Asia/Shanghai\n\
-GIN_MODE=release\n\
-LOG_LEVEL=info\n\
-PORT=3000\n\
-\n\
-# 安全配置（请勿泄露）\n\
-SESSION_SECRET=$${SESSION_SECRET}\n\
-USER_TOKEN_SECRET=$${USER_TOKEN_SECRET}\n\
-\n\
-# 数据库配置\n\
-MYSQL_ROOT_PASSWORD=$${MYSQL_ROOT_PASSWORD}\n\
-MYSQL_PASSWORD=$${MYSQL_PASSWORD}\n\
-SQL_DSN=oneapi:$${MYSQL_PASSWORD}@tcp(mysql:3306)/one-api\n\
-\n\
-# Redis 配置\n\
-REDIS_CONN_STRING=redis://redis:6379\n\
-REDIS_DB=0\n\
-\n\
-# 性能优化\n\
-MEMORY_CACHE_ENABLED=true\n\
-SYNC_FREQUENCY=300\n\
-BATCH_UPDATE_ENABLED=true\n\
-BATCH_UPDATE_INTERVAL=5\n\
-\n\
-# 限流配置\n\
-GLOBAL_API_RATE_LIMIT=180\n\
-GLOBAL_WEB_RATE_LIMIT=100\n\
-RELAY_TIMEOUT=120\n\
-\n\
-# 渠道管理\n\
-CHANNEL_TEST_FREQUENCY=60\n\
-POLLING_INTERVAL=2\n\
-\n\
-# 价格管理\n\
-AUTO_PRICE_UPDATES=true\n\
-AUTO_PRICE_UPDATES_MODE=system\n\
-ENV_EOF\n\
-SCRIPT_EOF; \
-		chmod +x scripts/generate-env.sh; \
-	fi
-	@bash scripts/generate-env.sh > $(ENV_FILE)
-	@echo "$(GREEN)✓ 配置文件已生成: $(ENV_FILE)$(NC)"
-	@echo ""
-	@echo "$(YELLOW)╔════════════════════════════════════════════════════════╗$(NC)"
-	@echo "$(YELLOW)║           ⚠️ 请妥善保管配置文件 ⚠️                      ║$(NC)"
-	@echo "$(YELLOW)╚════════════════════════════════════════════════════════╝$(NC)"
-	@echo ""
-	@echo "$(RED)配置文件包含敏感信息，请勿提交到代码仓库！$(NC)"
-	@echo "$(BLUE)配置文件位置: $(ENV_FILE)$(NC)"
-
-check-env: ## 检查环境变量配置
-	@echo "$(BLUE)>>> 检查环境变量配置...$(NC)"
-	@if [ ! -f $(ENV_FILE) ]; then \
-		echo "$(RED)错误: 未找到配置文件 $(ENV_FILE)$(NC)"; \
-		echo "$(YELLOW)请运行: make -f Makefile.prod init$(NC)"; \
+		echo "错误: 未找到 scripts/generate-env.sh"; \
+		echo "请确保该文件存在，或重新克隆项目"; \
 		exit 1; \
 	fi
-	@echo "$(GREEN)✓ 环境变量配置存在$(NC)"
+	@bash scripts/generate-env.sh > $(ENV_FILE)
+	@echo "✓ 配置文件已生成: $(ENV_FILE)"
+	@echo ""
+	@echo "╔════════════════════════════════════════════════════════╗"
+	@echo "║           ⚠️ 请妥善保管配置文件 ⚠️                      ║"
+	@echo "╚════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "配置文件包含敏感信息，请勿提交到代码仓库！"
+	@echo "配置文件位置: $(ENV_FILE)"
+
+check-env: ## 检查环境变量配置
+	@echo ">>> 检查环境变量配置..."
+	@if [ ! -f $(ENV_FILE) ]; then \
+		echo "错误: 未找到配置文件 $(ENV_FILE)"; \
+		echo "请运行: make -f Makefile.prod init"; \
+		exit 1; \
+	fi
+	@echo "✓ 环境变量配置存在"
 
 ##@ 服务管理
 
 start: check-env ## 启动所有服务
-	@echo "$(GREEN)>>> 启动 $(PROJECT_NAME) 服务...$(NC)"
-	@docker-compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) up -d
-	@echo "$(GREEN)>>> 服务启动成功！$(NC)"
-	@echo "$(YELLOW)>>> 等待服务就绪...$(NC)"
+	@echo ">>> 启动 $(PROJECT_NAME) 服务..."
+	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) up -d
+	@echo ">>> 服务启动成功！"
+	@echo ">>> 等待服务就绪..."
 	@sleep 10
 	@$(MAKE) -f Makefile.prod health
 
 stop: ## 停止所有服务
-	@echo "$(YELLOW)>>> 停止 $(PROJECT_NAME) 服务...$(NC)"
-	@docker-compose -f $(COMPOSE_FILE) down
-	@echo "$(GREEN)>>> 服务已停止$(NC)"
+	@echo ">>> 停止 $(PROJECT_NAME) 服务..."
+	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) down
+	@echo ">>> 服务已停止"
 
 restart: ## 重启所有服务
-	@echo "$(YELLOW)>>> 重启 $(PROJECT_NAME) 服务...$(NC)"
+	@echo ">>> 重启 $(PROJECT_NAME) 服务..."
 	@$(MAKE) -f Makefile.prod stop
 	@sleep 3
 	@$(MAKE) -f Makefile.prod start
 
 restart-app: ## 仅重启应用服务（不重启数据库和 Redis）
-	@echo "$(YELLOW)>>> 重启应用服务...$(NC)"
-	@docker-compose -f $(COMPOSE_FILE) restart one-hub
+	@echo ">>> 重启应用服务..."
+	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) restart one-hub
 	@sleep 5
 	@$(MAKE) -f Makefile.prod health
 
 ##@ 日志和监控
 
 logs: ## 查看所有服务日志
-	@docker-compose -f $(COMPOSE_FILE) logs -f
+	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) logs -f
 
 logs-app: ## 查看应用日志
-	@docker-compose -f $(COMPOSE_FILE) logs -f one-hub
+	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) logs -f one-hub
 
 logs-mysql: ## 查看 MySQL 日志
-	@docker-compose -f $(COMPOSE_FILE) logs -f mysql
+	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) logs -f mysql
 
 logs-redis: ## 查看 Redis 日志
-	@docker-compose -f $(COMPOSE_FILE) logs -f redis
+	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) logs -f redis
 
 status: ## 查看服务状态
-	@echo "$(BLUE)>>> 服务状态$(NC)"
-	@docker-compose -f $(COMPOSE_FILE) ps
+	@echo ">>> 服务状态"
+	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) ps
 
 health: ## 检查服务健康状态
-	@echo "$(BLUE)>>> 检查服务健康状态...$(NC)"
-	@docker-compose -f $(COMPOSE_FILE) ps | grep -q "healthy" && \
-		echo "$(GREEN)✓ 容器健康检查通过$(NC)" || \
-		echo "$(YELLOW)⚠ 部分容器可能未就绪$(NC)"
+	@echo ">>> 检查服务健康状态..."
+	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) ps | grep -q "healthy" && \
+		echo "✓ 容器健康检查通过" || \
+		echo "⚠ 部分容器可能未就绪"
 	@echo ""
-	@echo "$(BLUE)>>> 应用健康检查...$(NC)"
+	@echo ">>> 应用健康检查..."
 	@sleep 2
 	@curl -sf http://localhost:3000/api/status >/dev/null 2>&1 && \
-		echo "$(GREEN)✓ 应用运行正常$(NC)" || \
-		echo "$(RED)✗ 应用健康检查失败$(NC)"
+		echo "✓ 应用运行正常" || \
+		echo "✗ 应用健康检查失败"
 
 stats: ## 查看资源使用情况
-	@docker stats --no-stream $$(docker-compose -f $(COMPOSE_FILE) ps -q 2>/dev/null)
+	@docker stats --no-stream $$(docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) ps -q 2>/dev/null)
 
 ##@ 数据库管理
 
 db-shell: ## 进入 MySQL 命令行
-	@echo "$(BLUE)>>> 进入 MySQL 命令行...$(NC)"
-	@docker-compose -f $(COMPOSE_FILE) exec mysql mysql -u oneapi -p
+	@echo ">>> 进入 MySQL 命令行..."
+	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) exec mysql mysql -u oneapi -p
 
 redis-shell: ## 进入 Redis 命令行
-	@echo "$(BLUE)>>> 进入 Redis 命令行...$(NC)"
-	@docker-compose -f $(COMPOSE_FILE) exec redis redis-cli
+	@echo ">>> 进入 Redis 命令行..."
+	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) exec redis redis-cli
 
 db-backup: ## 备份数据库
-	@echo "$(BLUE)>>> 开始备份数据库...$(NC)"
+	@echo ">>> 开始备份数据库..."
 	@bash scripts/backup.sh
-	@echo "$(GREEN)>>> 备份完成！$(NC)"
+	@echo ">>> 备份完成！"
 
 db-restore: ## 恢复数据库（需要指定备份文件：make db-restore BACKUP=xxx.sql.gz）
 	@if [ -z "$(BACKUP)" ]; then \
-		echo "$(RED)错误: 请指定备份文件$(NC)"; \
-		echo "$(YELLOW)使用方式: make -f Makefile.prod db-restore BACKUP=backups/one-api-20240101_120000.sql.gz$(NC)"; \
+		echo "错误: 请指定备份文件"; \
+		echo "使用方式: make -f Makefile.prod db-restore BACKUP=backups/one-api-20240101_120000.sql.gz"; \
 		echo ""; \
-		echo "$(BLUE)可用的备份文件:$(NC)"; \
+		echo "可用的备份文件:"; \
 		ls -lh $(BACKUP_DIR)/*.sql.gz 2>/dev/null || echo "  无备份文件"; \
 		exit 1; \
 	fi
-	@echo "$(YELLOW)>>> 恢复数据库: $(BACKUP)$(NC)"
+	@echo ">>> 恢复数据库: $(BACKUP)"
 	@bash scripts/restore.sh $(BACKUP)
-	@echo "$(GREEN)>>> 恢复完成！$(NC)"
+	@echo ">>> 恢复完成！"
 
 ##@ 更新和维护
 
 update: ## 更新到最新版本
-	@echo "$(BLUE)>>> 拉取最新镜像...$(NC)"
-	@docker-compose -f $(COMPOSE_FILE) pull
-	@echo "$(YELLOW)>>> 备份当前数据...$(NC)"
+	@echo ">>> 拉取最新镜像..."
+	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) pull
+	@echo ">>> 备份当前数据..."
 	@$(MAKE) -f Makefile.prod db-backup
-	@echo "$(YELLOW)>>> 重启服务...$(NC)"
+	@echo ">>> 重启服务..."
 	@$(MAKE) -f Makefile.prod restart
-	@echo "$(GREEN)>>> 更新完成！$(NC)"
+	@echo ">>> 更新完成！"
 
 upgrade: update ## 更新的别名
 
 pull: ## 拉取最新镜像（不重启）
-	@docker-compose -f $(COMPOSE_FILE) pull
+	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) pull
 
 ##@ 清理和维护
 
 clean: ## 清理未使用的 Docker 资源
-	@echo "$(YELLOW)>>> 清理未使用的 Docker 资源...$(NC)"
+	@echo ">>> 清理未使用的 Docker 资源..."
 	@docker system prune -f
-	@echo "$(GREEN)>>> 清理完成$(NC)"
+	@echo ">>> 清理完成"
 
 clean-all: ## 清理所有数据（危险操作！）
-	@echo "$(RED)╔════════════════════════════════════════════════════════╗$(NC)"
-	@echo "$(RED)║                  ⚠️ 危险操作 ⚠️                         ║$(NC)"
-	@echo "$(RED)╚════════════════════════════════════════════════════════╝$(NC)"
+	@echo "╔════════════════════════════════════════════════════════╗"
+	@echo "║                  ⚠️ 危险操作 ⚠️                         ║"
+	@echo "╚════════════════════════════════════════════════════════╝"
 	@echo ""
-	@echo "$(RED)此操作将删除所有数据，包括:$(NC)"
+	@echo "此操作将删除所有数据，包括:"
 	@echo "  • 数据库数据"
 	@echo "  • Redis 缓存"
 	@echo "  • 应用数据"
 	@echo "  • 日志文件"
 	@echo ""
-	@echo "$(YELLOW)请输入项目名称 '$(PROJECT_NAME)' 确认:$(NC)"
+	@echo "请输入项目名称 '$(PROJECT_NAME)' 确认:"
 	@read -r confirm; \
 	if [ "$$confirm" = "$(PROJECT_NAME)" ]; then \
-		echo "$(YELLOW)>>> 停止服务...$(NC)"; \
+		echo ">>> 停止服务..."; \
 		$(MAKE) -f Makefile.prod stop; \
-		echo "$(YELLOW)>>> 删除数据...$(NC)"; \
-		docker-compose -f $(COMPOSE_FILE) down -v; \
+		echo ">>> 删除数据..."; \
+		docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) down -v; \
 		rm -rf $(DATA_DIR)/* $(LOGS_DIR)/*; \
-		echo "$(GREEN)>>> 清理完成$(NC)"; \
+		echo ">>> 清理完成"; \
 	else \
-		echo "$(RED)确认失败，操作已取消$(NC)"; \
+		echo "确认失败，操作已取消"; \
 	fi
 
 logs-clean: ## 清理旧日志文件（保留最近7天）
-	@echo "$(YELLOW)>>> 清理旧日志文件...$(NC)"
+	@echo ">>> 清理旧日志文件..."
 	@find $(LOGS_DIR) -name "*.log*" -mtime +7 -delete 2>/dev/null || true
-	@echo "$(GREEN)>>> 日志清理完成$(NC)"
+	@echo ">>> 日志清理完成"
 
 ##@ 开发和调试
 
 shell: ## 进入应用容器 shell
-	@docker-compose -f $(COMPOSE_FILE) exec one-hub /bin/sh
+	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) exec one-hub /bin/sh
 
 inspect: ## 查看应用容器详细信息
-	@docker-compose -f $(COMPOSE_FILE) exec one-hub cat /etc/os-release || true
+	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) exec one-hub cat /etc/os-release || true
 	@echo ""
-	@docker-compose -f $(COMPOSE_FILE) exec one-hub ps aux || true
+	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) exec one-hub ps aux || true
 
 config: ## 显示完整的 Docker Compose 配置
-	@docker-compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) config
+	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) config
 
 validate: ## 验证 Docker Compose 配置
-	@echo "$(BLUE)>>> 验证配置文件...$(NC)"
-	@docker-compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) config -q && \
-		echo "$(GREEN)✓ 配置文件验证通过$(NC)" || \
-		echo "$(RED)✗ 配置文件验证失败$(NC)"
+	@echo ">>> 验证配置文件..."
+	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) config -q && \
+		echo "✓ 配置文件验证通过" || \
+		echo "✗ 配置文件验证失败"
 
 ##@ 快捷操作
 
 dev: ## 开发模式（显示日志）
-	@docker-compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) up
+	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) up
 
 ps: status ## 查看服务状态（status 的别名）
 
@@ -347,32 +292,32 @@ top: stats ## 查看资源使用（stats 的别名）
 ##@ 打包和分发
 
 package: ## 打包生产环境部署文件
-	@echo "$(BLUE)>>> 开始打包生产环境...$(NC)"
+	@echo ">>> 开始打包生产环境..."
 	@bash scripts/package-prod.sh
 
 package-check: ## 检查打包文件
 	@if [ -f dist/*.tar.gz ]; then \
-		echo "$(BLUE)>>> 打包文件:$(NC)"; \
+		echo ">>> 打包文件:"; \
 		ls -lh dist/*.tar.gz; \
 		echo ""; \
-		echo "$(BLUE)>>> MD5 校验:$(NC)"; \
-		cat dist/*.tar.gz.md5; \
+		echo ">>> MD5 校验:"; \
+		cat dist/*.tar.gz.md5 2>/dev/null || echo "  无校验文件"; \
 	else \
-		echo "$(RED)未找到打包文件，请先运行: make -f Makefile.prod package$(NC)"; \
+		echo "未找到打包文件，请先运行: make -f Makefile.prod package"; \
 	fi
 
 package-extract: ## 解压查看打包内容（需要指定 FILE=xxx.tar.gz）
 	@if [ -z "$(FILE)" ]; then \
-		echo "$(RED)错误: 请指定文件$(NC)"; \
-		echo "$(YELLOW)使用方式: make -f Makefile.prod package-extract FILE=dist/xxx.tar.gz$(NC)"; \
+		echo "错误: 请指定文件"; \
+		echo "使用方式: make -f Makefile.prod package-extract FILE=dist/xxx.tar.gz"; \
 		exit 1; \
 	fi
-	@echo "$(BLUE)>>> 解压 $(FILE)...$(NC)"
+	@echo ">>> 解压 $(FILE)..."
 	@tar -tzf $(FILE) | head -30
 	@echo ""
-	@echo "$(YELLOW)... (总共 $$(tar -tzf $(FILE) | wc -l) 个文件)$(NC)"
+	@echo "... (总共 $$(tar -tzf $(FILE) | wc -l) 个文件)"
 
 package-clean: ## 清理打包文件
-	@echo "$(YELLOW)>>> 清理打包文件...$(NC)"
+	@echo ">>> 清理打包文件..."
 	@rm -rf ./dist
-	@echo "$(GREEN)✓ 清理完成$(NC)"
+	@echo "✓ 清理完成"

@@ -18,7 +18,7 @@ services:
       - SESSION_SECRET=wOcZ8RNoZ26rB
       - PYGrYP+eD+yZOZYTXCnsDDSf79HOMI= # 修改为随机字符串
       - USER_TOKEN_SECRET=5uTXoaH4HSFQ5cQsPQ9FeTPS/b+kXGfPvrbq0bwCPz0= # 修改为随机字符串,32位以上
-      - UPDATE_PRICE_SERVICE=https://raw.githubusercontent.com/MartialBE/one-api/prices/prices.json
+      - UPDATE_PRICE_SERVICE=https://raw.githubusercontent.com/Oaklight/onehub_prices/prices/oneapi_prices.json
       - TZ=Asia/Shanghai
       # - HASHIDS_SALT=random_string # 可空，建议设置，字符串元素不能重复
     #      - NODE_TYPE=slave  # 多机部署时从节点取消注释该行

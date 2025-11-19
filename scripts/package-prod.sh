@@ -86,6 +86,7 @@ script_files=(
     "scripts/backup.sh"
     "scripts/restore.sh"
     "scripts/quick-start.sh"
+    "scripts/generate-env.sh"
 )
 
 for file in "${script_files[@]}"; do

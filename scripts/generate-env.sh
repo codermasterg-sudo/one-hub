@@ -1,0 +1,53 @@
+#!/bin/bash
+# 环境变量生成脚本
+
+SESSION_SECRET=$(openssl rand -base64 32)
+USER_TOKEN_SECRET=$(openssl rand -base64 32)
+MYSQL_ROOT_PASSWORD=$(openssl rand -base64 32)
+MYSQL_PASSWORD=$(openssl rand -base64 32)
+
+cat << ENV_EOF
+# One Hub 生产环境配置
+# 生成时间: $(date)
+# ⚠️ 警告: USER_TOKEN_SECRET 一旦设置不可修改！
+
+# 基础配置
+TZ=Asia/Shanghai
+GIN_MODE=release
+LOG_LEVEL=info
+PORT=3000
+
+# 安全配置（请勿泄露）
+SESSION_SECRET=${SESSION_SECRET}
+USER_TOKEN_SECRET=${USER_TOKEN_SECRET}
+
+# 数据库配置
+MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+MYSQL_PASSWORD=${MYSQL_PASSWORD}
+SQL_DSN=oneapi:${MYSQL_PASSWORD}@tcp(mysql:3306)/one-api
+
+# Redis 配置
+REDIS_CONN_STRING=redis://redis:6379
+REDIS_DB=0
+
+# 性能优化
+MEMORY_CACHE_ENABLED=true
+SYNC_FREQUENCY=300
+BATCH_UPDATE_ENABLED=true
+BATCH_UPDATE_INTERVAL=5
+
+# 限流配置
+GLOBAL_API_RATE_LIMIT=180
+GLOBAL_WEB_RATE_LIMIT=100
+RELAY_TIMEOUT=120
+
+# 渠道管理
+CHANNEL_TEST_FREQUENCY=60
+POLLING_INTERVAL=2
+
+# 价格管理
+AUTO_PRICE_UPDATES=true
+AUTO_PRICE_UPDATES_MODE=system
+UPDATE_PRICE_SERVICE=https://raw.githubusercontent.com/Oaklight/onehub_prices/prices/oneapi_prices.json
+
+ENV_EOF
