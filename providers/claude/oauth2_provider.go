@@ -22,14 +22,9 @@ func (f ClaudeOAuth2ProviderFactory) Create(channel *model.Channel) base.Provide
 		},
 	}
 
-	// 获取代理地址（如果配置了）
-	proxyAddr := ""
-	if channel.Proxy != nil {
-		proxyAddr = *channel.Proxy
-	}
-
-	// 初始化 OAuth2（channel.Key 存储 refresh_token），使用渠道的代理配置
-	if err := provider.InitOAuth2WithProxy("claude", channel.Key, proxyAddr); err != nil {
+	// 初始化 OAuth2，自动从 channel 中读取 refresh_token 和代理配置
+	// API 请求和 OAuth2 操作将使用同一个代理
+	if err := provider.InitOAuth2FromChannel("claude", channel); err != nil {
 		// 如果初始化失败，记录错误但不中断创建过程
 		// 实际请求时会返回错误
 	}
