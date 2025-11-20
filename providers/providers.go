@@ -93,6 +93,7 @@ func init() {
 		config.ChannelTypeAzureDatabricks: azuredatabricks.AzureDatabricksProviderFactory{},
 		config.ChannelTypeAzureV1:         azure_v1.AzureV1ProviderFactory{},
 		config.ChannelTypeXAI:             xAI.XAIProviderFactory{},
+		config.ChannelTypeClaudeOAuth2:    claude.ClaudeOAuth2ProviderFactory{},
 	}
 }
 

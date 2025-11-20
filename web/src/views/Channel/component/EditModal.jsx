@@ -45,6 +45,7 @@ import ListInput from './ListInput';
 import ModelSelectorModal from './ModelSelectorModal';
 import pluginList from '../type/Plugin.json';
 import { Icon } from '@iconify/react';
+import { OAuth2AuthButton } from 'components/OAuth2';
 
 const icon = <CheckBoxOutlineBlankIcon fontSize="small" />;
 const checkedIcon = <CheckBoxIcon fontSize="small" />;
@@ -825,6 +826,25 @@ const EditModal = ({ open, channelId, onCancel, onOk, groupOptions, isTag, model
                     </FormHelperText>
                   )}
                 </FormControl>
+
+                {/* OAuth2 授权按钮 */}
+                {currentConfig.oauth2 && currentConfig.oauth2.enabled && (
+                  <Box sx={{ ...theme.typography.otherInput }}>
+                    <OAuth2AuthButton
+                      provider={currentConfig.oauth2.provider}
+                      onSuccess={(refreshToken) => {
+                        setFieldValue('key', refreshToken);
+                        showSuccess('OAuth2 授权成功，Refresh Token 已自动填入');
+                      }}
+                      disabled={batchAdd}
+                      buttonText={`授权 ${currentConfig.displayName || currentConfig.oauth2.provider}`}
+                      buttonVariant="outlined"
+                    />
+                    <FormHelperText>
+                      使用 OAuth2 授权后，系统会自动管理 Token 刷新，无需手动更新
+                    </FormHelperText>
+                  </Box>
+                )}
 
                 {inputPrompt.model_mapping && (
                   <FormControl
