@@ -48,11 +48,12 @@ func SetApiRouter(router *gin.Engine) {
 
 		// OAuth2 Provider 相关路由
 		oauth2Group := apiRouter.Group("/oauth2")
+		oauth2Group.Use(middleware.AdminAuth())
 		{
 			oauth2Group.GET("/providers", controller.GetOAuth2Providers)
 			oauth2Group.GET("/auth_url", middleware.CriticalRateLimit(), controller.GetOAuth2AuthURL)
 			oauth2Group.POST("/exchange", middleware.CriticalRateLimit(), controller.ExchangeOAuth2Code)
-			oauth2Group.POST("/test", middleware.UserAuth(), controller.TestOAuth2Token)
+			oauth2Group.POST("/test", controller.TestOAuth2Token)
 		}
 
 		webauthnGroup := apiRouter.Group("/webauthn")
