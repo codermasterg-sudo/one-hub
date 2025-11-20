@@ -561,6 +561,30 @@ const typeConfig = {
     inputLabel: {
       provider_models_list: '从OR获取模型列表'
     }
+  },
+  57: {
+    inputLabel: {
+      key: 'OAuth2 Refresh Token',
+      provider_models_list: '从 Claude 获取模型列表'
+    },
+    prompt: {
+      key: '点击下方 "OAuth2 授权" 按钮获取 Refresh Token。授权后请勿手动修改此字段。'
+    },
+    input: {
+      models: [
+        'claude-3-5-sonnet-20241022',
+        'claude-3-5-haiku-20241022',
+        'claude-3-opus-20240229',
+        'claude-3-sonnet-20240229',
+        'claude-3-haiku-20240307'
+      ],
+      test_model: 'claude-3-5-haiku-20241022'
+    },
+    modelGroup: 'Anthropic',
+    oauth2: {
+      enabled: true,
+      provider: 'claude'
+    }
   }
 };
 

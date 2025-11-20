@@ -1,0 +1,80 @@
+package base
+
+import (
+	"context"
+	"fmt"
+
+	"one-api/common/oauth2"
+)
+
+// OAuth2ProviderMixin 提供 OAuth2 能力的 Mixin
+// 通过组合的方式为 Provider 添加 OAuth2 支持
+type OAuth2ProviderMixin struct {
+	oauth2Manager *oauth2.Manager
+	providerName  string
+}
+
+// InitOAuth2 初始化 OAuth2 功能
+// providerName: OAuth2 配置注册时使用的名称（如 "claude", "gemini"）
+// refreshToken: refresh_token（通常存储在 channel.Key 中）
+func (m *OAuth2ProviderMixin) InitOAuth2(providerName string, refreshToken string) error {
+	if refreshToken == "" {
+		return fmt.Errorf("refresh_token is required for OAuth2")
+	}
+
+	manager, err := oauth2.NewManager(providerName, refreshToken)
+	if err != nil {
+		return fmt.Errorf("failed to create oauth2 manager: %w", err)
+	}
+
+	m.oauth2Manager = manager
+	m.providerName = providerName
+
+	return nil
+}
+
+// GetOAuth2Headers 获取 OAuth2 认证头
+// 返回一个包含认证头的 map，可以直接合并到请求头中
+func (m *OAuth2ProviderMixin) GetOAuth2Headers(ctx context.Context) (map[string]string, error) {
+	if m.oauth2Manager == nil {
+		return nil, fmt.Errorf("oauth2 not initialized, call InitOAuth2() first")
+	}
+
+	key, value, err := m.oauth2Manager.GetAuthHeader(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get auth header: %w", err)
+	}
+
+	return map[string]string{
+		key: value,
+	}, nil
+}
+
+// GetOAuth2Manager 获取 OAuth2 Manager（用于高级用法）
+func (m *OAuth2ProviderMixin) GetOAuth2Manager() *oauth2.Manager {
+	return m.oauth2Manager
+}
+
+// IsOAuth2Enabled 检查是否启用了 OAuth2
+func (m *OAuth2ProviderMixin) IsOAuth2Enabled() bool {
+	return m.oauth2Manager != nil
+}
+
+// GetOAuth2ProviderName 获取 OAuth2 Provider 名称
+func (m *OAuth2ProviderMixin) GetOAuth2ProviderName() string {
+	return m.providerName
+}
+
+// RefreshOAuth2Token 手动刷新 OAuth2 Token（通常不需要调用，Manager 会自动刷新）
+func (m *OAuth2ProviderMixin) RefreshOAuth2Token(ctx context.Context) error {
+	if m.oauth2Manager == nil {
+		return fmt.Errorf("oauth2 not initialized")
+	}
+
+	// 清除缓存强制刷新
+	m.oauth2Manager.ClearCache()
+
+	// 触发刷新
+	_, err := m.oauth2Manager.GetAccessToken(ctx)
+	return err
+}
