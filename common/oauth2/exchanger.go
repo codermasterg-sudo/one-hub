@@ -16,17 +16,22 @@ import (
 
 // DefaultExchanger 默认的授权码交换器实现
 type DefaultExchanger struct {
-	config *OAuth2Config
-	client *http.Client
+	config    *OAuth2Config
+	client    *http.Client
+	proxyAddr string
 }
 
 // NewDefaultExchanger 创建默认交换器
 func NewDefaultExchanger(config *OAuth2Config) *DefaultExchanger {
+	return NewDefaultExchangerWithProxy(config, "")
+}
+
+// NewDefaultExchangerWithProxy 创建支持代理的默认交换器
+func NewDefaultExchangerWithProxy(config *OAuth2Config, proxyAddr string) *DefaultExchanger {
 	return &DefaultExchanger{
-		config: config,
-		client: &http.Client{
-			Timeout: 30 * time.Second,
-		},
+		config:    config,
+		client:    CreateHTTPClientWithProxy(proxyAddr),
+		proxyAddr: proxyAddr,
 	}
 }
 
@@ -92,6 +97,9 @@ func (e *DefaultExchanger) exchangeWithJSON(ctx context.Context, code string, st
 		return nil, NewOAuth2Error(e.config.ProviderName, "exchange", fmt.Errorf("marshal request: %w", err))
 	}
 
+	// 为请求添加代理配置
+	ctx = WrapRequestWithProxy(ctx, e.proxyAddr)
+
 	req, err := http.NewRequestWithContext(ctx, "POST", e.config.Endpoint.TokenURL, bytes.NewReader(jsonData))
 	if err != nil {
 		return nil, NewOAuth2Error(e.config.ProviderName, "exchange", fmt.Errorf("create request: %w", err))
@@ -120,6 +128,9 @@ func (e *DefaultExchanger) exchangeWithForm(ctx context.Context, code string, st
 	if e.config.UsePKCE && state != "" {
 		data.Set("code_verifier", state)
 	}
+
+	// 为请求添加代理配置
+	ctx = WrapRequestWithProxy(ctx, e.proxyAddr)
 
 	req, err := http.NewRequestWithContext(ctx, "POST", e.config.Endpoint.TokenURL, bytes.NewBufferString(data.Encode()))
 	if err != nil {

@@ -18,11 +18,19 @@ type OAuth2ProviderMixin struct {
 // providerName: OAuth2 配置注册时使用的名称（如 "claude", "gemini"）
 // refreshToken: refresh_token（通常存储在 channel.Key 中）
 func (m *OAuth2ProviderMixin) InitOAuth2(providerName string, refreshToken string) error {
+	return m.InitOAuth2WithProxy(providerName, refreshToken, "")
+}
+
+// InitOAuth2WithProxy 初始化 OAuth2 功能（支持代理）
+// providerName: OAuth2 配置注册时使用的名称（如 "claude", "gemini"）
+// refreshToken: refresh_token（通常存储在 channel.Key 中）
+// proxyAddr: 代理地址（支持 http://, https://, socks5:// 协议）
+func (m *OAuth2ProviderMixin) InitOAuth2WithProxy(providerName string, refreshToken string, proxyAddr string) error {
 	if refreshToken == "" {
 		return fmt.Errorf("refresh_token is required for OAuth2")
 	}
 
-	manager, err := oauth2.NewManager(providerName, refreshToken)
+	manager, err := oauth2.NewManagerWithProxy(providerName, refreshToken, proxyAddr)
 	if err != nil {
 		return fmt.Errorf("failed to create oauth2 manager: %w", err)
 	}

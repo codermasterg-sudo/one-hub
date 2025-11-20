@@ -16,10 +16,16 @@ type Manager struct {
 	accessToken  *oauth2.Token
 	mutex        sync.RWMutex
 	refresher    TokenRefresher
+	proxyAddr    string
 }
 
 // NewManager 创建 Token Manager
 func NewManager(providerName string, refreshToken string) (*Manager, error) {
+	return NewManagerWithProxy(providerName, refreshToken, "")
+}
+
+// NewManagerWithProxy 创建支持代理的 Token Manager
+func NewManagerWithProxy(providerName string, refreshToken string, proxyAddr string) (*Manager, error) {
 	if refreshToken == "" {
 		return nil, fmt.Errorf("refresh_token is required")
 	}
@@ -29,15 +35,16 @@ func NewManager(providerName string, refreshToken string) (*Manager, error) {
 		return nil, err
 	}
 
-	return NewManagerWithConfig(config, refreshToken), nil
+	return NewManagerWithConfig(config, refreshToken, proxyAddr), nil
 }
 
 // NewManagerWithConfig 使用自定义配置创建 Manager
-func NewManagerWithConfig(config *OAuth2Config, refreshToken string) *Manager {
+func NewManagerWithConfig(config *OAuth2Config, refreshToken string, proxyAddr string) *Manager {
 	return &Manager{
 		config:       config,
 		refreshToken: refreshToken,
-		refresher:    NewDefaultRefresher(config),
+		refresher:    NewDefaultRefresherWithProxy(config, proxyAddr),
+		proxyAddr:    proxyAddr,
 	}
 }
 
