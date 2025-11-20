@@ -119,8 +119,8 @@
 - [PKCE RFC 7636](https://datatracker.ietf.org/doc/html/rfc7636)
 
 ### 项目文档
-- [CLAUDE.md](../CLAUDE.md) - 项目开发指南
-- [README.md](../README.md) - 项目介绍
+- [CLAUDE.md](../../CLAUDE.md) - 项目开发指南
+- [README.md](../../README.md) - 项目介绍
 
 ---
 

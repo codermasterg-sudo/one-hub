@@ -21,6 +21,10 @@ features:
     icon: 📖
     details: 使用One Hub
     link: /use/index
+  - title: OAuth2 认证框架
+    icon: 🔐
+    details: Claude OAuth2 认证集成文档
+    link: /oauth2/
   - title: 常见问题
     icon: 💬
     details: 常见问题
@@ -49,6 +53,7 @@ features:
 - 重构了中转`供应商`模块
 - 支持使用`Azure Speech`模拟`TTS`功能
 - 渠道可配置单独的 http/socks5 代理
+- 支持 OAuth2 认证（Claude OAuth2 集成）
 - 支持动态返回用户模型列表
 - 支持自定义测速模型
 - 日志增加请求耗时
