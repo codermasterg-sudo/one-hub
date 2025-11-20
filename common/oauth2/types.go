@@ -8,10 +8,10 @@ import (
 type TokenRequestType string
 
 const (
-	// TokenRequestJSON JSON 格式请求（如 Anthropic）
+	// TokenRequestJSON JSON 格式请求（某些 Provider 使用非标准 JSON 格式）
 	TokenRequestJSON TokenRequestType = "json"
 
-	// TokenRequestForm 标准 Form 格式请求（标准 OAuth2）
+	// TokenRequestForm 标准 Form 格式请求（RFC 6749 标准）
 	TokenRequestForm TokenRequestType = "form"
 )
 
@@ -33,7 +33,7 @@ const (
 type OAuth2Config struct {
 	// === 基础配置 ===
 
-	// ProviderName Provider 唯一标识符（如 "claude", "gemini"）
+	// ProviderName Provider 唯一标识符
 	ProviderName string `json:"provider_name"`
 
 	// ClientID OAuth2 客户端 ID

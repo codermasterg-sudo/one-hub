@@ -36,7 +36,7 @@ func (e *DefaultExchanger) Exchange(ctx context.Context, code string, state stri
 		return nil, NewOAuth2Error(e.config.ProviderName, "exchange", fmt.Errorf("code is empty"))
 	}
 
-	// 处理特殊格式的 code（如 Anthropic 的 "code#state"）
+	// 处理特殊格式的 code（如 "code#state" 格式）
 	actualCode, actualState := e.parseCode(code, state)
 
 	// 如果配置使用 PKCE，验证 state
@@ -57,7 +57,7 @@ func (e *DefaultExchanger) Exchange(ctx context.Context, code string, state stri
 
 // parseCode 解析授权码（支持 "code#state" 格式）
 func (e *DefaultExchanger) parseCode(code string, state string) (string, string) {
-	// 检查是否包含 # 分隔符（如 Anthropic）
+	// 检查是否包含 # 分隔符（某些 Provider 使用此格式）
 	if strings.Contains(code, "#") {
 		parts := strings.SplitN(code, "#", 2)
 		if len(parts) == 2 {

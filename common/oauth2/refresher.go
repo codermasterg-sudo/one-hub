@@ -46,7 +46,7 @@ func (r *DefaultRefresher) RefreshToken(ctx context.Context, refreshToken string
 	}
 }
 
-// refreshWithJSON 使用 JSON 格式刷新 token（如 Anthropic）
+// refreshWithJSON 使用 JSON 格式刷新 token（非标准格式）
 func (r *DefaultRefresher) refreshWithJSON(ctx context.Context, refreshToken string) (*oauth2.Token, error) {
 	// 构建请求体
 	reqBody := map[string]string{
