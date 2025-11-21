@@ -15,17 +15,22 @@ import (
 
 // DefaultRefresher 默认的 Token 刷新器实现
 type DefaultRefresher struct {
-	config *OAuth2Config
-	client *http.Client
+	config    *OAuth2Config
+	client    *http.Client
+	proxyAddr string
 }
 
 // NewDefaultRefresher 创建默认刷新器
 func NewDefaultRefresher(config *OAuth2Config) *DefaultRefresher {
+	return NewDefaultRefresherWithProxy(config, "")
+}
+
+// NewDefaultRefresherWithProxy 创建支持代理的默认刷新器
+func NewDefaultRefresherWithProxy(config *OAuth2Config, proxyAddr string) *DefaultRefresher {
 	return &DefaultRefresher{
-		config: config,
-		client: &http.Client{
-			Timeout: 30 * time.Second,
-		},
+		config:    config,
+		client:    CreateHTTPClientWithProxy(proxyAddr),
+		proxyAddr: proxyAddr,
 	}
 }
 
@@ -70,6 +75,9 @@ func (r *DefaultRefresher) refreshWithJSON(ctx context.Context, refreshToken str
 		return nil, NewOAuth2Error(r.config.ProviderName, "refresh", fmt.Errorf("marshal request: %w", err))
 	}
 
+	// 为请求添加代理配置
+	ctx = WrapRequestWithProxy(ctx, r.proxyAddr)
+
 	// 创建请求
 	req, err := http.NewRequestWithContext(ctx, "POST", r.config.GetRefreshURL(), bytes.NewReader(jsonData))
 	if err != nil {
@@ -99,6 +107,9 @@ func (r *DefaultRefresher) refreshWithForm(ctx context.Context, refreshToken str
 	for k, v := range r.config.RefreshExtraParams {
 		data.Set(k, v)
 	}
+
+	// 为请求添加代理配置
+	ctx = WrapRequestWithProxy(ctx, r.proxyAddr)
 
 	// 创建请求
 	req, err := http.NewRequestWithContext(ctx, "POST", r.config.GetRefreshURL(), bytes.NewBufferString(data.Encode()))

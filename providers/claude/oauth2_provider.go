@@ -22,8 +22,9 @@ func (f ClaudeOAuth2ProviderFactory) Create(channel *model.Channel) base.Provide
 		},
 	}
 
-	// 初始化 OAuth2（channel.Key 存储 refresh_token）
-	if err := provider.InitOAuth2("claude", channel.Key); err != nil {
+	// 初始化 OAuth2，自动从 channel 中读取 refresh_token 和代理配置
+	// API 请求和 OAuth2 操作将使用同一个代理
+	if err := provider.InitOAuth2FromChannel("claude", channel); err != nil {
 		// 如果初始化失败，记录错误但不中断创建过程
 		// 实际请求时会返回错误
 	}

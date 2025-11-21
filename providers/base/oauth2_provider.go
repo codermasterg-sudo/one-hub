@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"one-api/common/oauth2"
+	"one-api/model"
 )
 
 // OAuth2ProviderMixin 提供 OAuth2 能力的 Mixin
@@ -14,15 +15,23 @@ type OAuth2ProviderMixin struct {
 	providerName  string
 }
 
-// InitOAuth2 初始化 OAuth2 功能
+// InitOAuth2 初始化 OAuth2 功能（不使用代理）
 // providerName: OAuth2 配置注册时使用的名称（如 "claude", "gemini"）
 // refreshToken: refresh_token（通常存储在 channel.Key 中）
 func (m *OAuth2ProviderMixin) InitOAuth2(providerName string, refreshToken string) error {
+	return m.InitOAuth2WithProxy(providerName, refreshToken, "")
+}
+
+// InitOAuth2WithProxy 初始化 OAuth2 功能（手动指定代理）
+// providerName: OAuth2 配置注册时使用的名称（如 "claude", "gemini"）
+// refreshToken: refresh_token（通常存储在 channel.Key 中）
+// proxyAddr: 代理地址（支持 http://, https://, socks5:// 协议）
+func (m *OAuth2ProviderMixin) InitOAuth2WithProxy(providerName string, refreshToken string, proxyAddr string) error {
 	if refreshToken == "" {
 		return fmt.Errorf("refresh_token is required for OAuth2")
 	}
 
-	manager, err := oauth2.NewManager(providerName, refreshToken)
+	manager, err := oauth2.NewManagerWithProxy(providerName, refreshToken, proxyAddr)
 	if err != nil {
 		return fmt.Errorf("failed to create oauth2 manager: %w", err)
 	}
@@ -31,6 +40,31 @@ func (m *OAuth2ProviderMixin) InitOAuth2(providerName string, refreshToken strin
 	m.providerName = providerName
 
 	return nil
+}
+
+// InitOAuth2FromChannel 初始化 OAuth2 功能（从 Channel 自动获取代理配置）
+// providerName: OAuth2 配置注册时使用的名称（如 "claude", "gemini"）
+// channel: 渠道配置（将自动读取 channel.Key 作为 refresh_token，channel.Proxy 作为代理地址）
+//
+// 这是推荐的使用方式，API 和 OAuth2 会自动使用同一个代理配置
+func (m *OAuth2ProviderMixin) InitOAuth2FromChannel(providerName string, channel *model.Channel) error {
+	if channel == nil {
+		return fmt.Errorf("channel cannot be nil")
+	}
+
+	// 从 channel 中获取 refresh_token
+	refreshToken := channel.Key
+	if refreshToken == "" {
+		return fmt.Errorf("refresh_token is required for OAuth2")
+	}
+
+	// 从 channel 中获取代理配置
+	proxyAddr := ""
+	if channel.Proxy != nil {
+		proxyAddr = *channel.Proxy
+	}
+
+	return m.InitOAuth2WithProxy(providerName, refreshToken, proxyAddr)
 }
 
 // GetOAuth2Headers 获取 OAuth2 认证头
