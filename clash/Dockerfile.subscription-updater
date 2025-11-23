@@ -1,0 +1,11 @@
+FROM alpine:latest
+
+# 安装必要工具
+RUN apk add --no-cache curl bash
+
+# 复制更新脚本
+COPY update-subscription-cron.sh /usr/local/bin/update-subscription.sh
+RUN chmod +x /usr/local/bin/update-subscription.sh
+
+# 启动时执行一次更新，然后每小时自动更新
+CMD sh -c "/usr/local/bin/update-subscription.sh && while true; do sleep 3600; /usr/local/bin/update-subscription.sh; done"

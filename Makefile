@@ -9,7 +9,7 @@ VERSION := $(shell git describe --tags 2>/dev/null || echo "dev")
 GOBUILD := go build -ldflags "-s -w -X 'one-api/common/config.Version=$(VERSION)'"
 
 # Docker 配置
-DOCKER_COMPOSE := docker-compose
+DOCKER_COMPOSE := docker compose
 SERVICES := one-hub redis mysql clash cliproxy
 
 # 颜色定义
@@ -74,6 +74,10 @@ help: ## 显示此帮助信息
 	@echo "  make update         - 更新镜像"
 	@echo "  make clean-data     - 清理所有数据（危险！）"
 	@echo "  make prune          - 清理 Docker 缓存"
+	@echo ""
+	@echo "$(GREEN)打包部署:$(NC)"
+	@echo "  make package        - 打包生产环境部署文件"
+	@echo "  make upload         - 打包并上传到远程服务器"
 	@echo ""
 
 # ==================== 编译相关 ====================
@@ -388,3 +392,79 @@ test-full: ## 完整测试流程
 	@$(MAKE) clash-test
 	@$(MAKE) cliproxy-test
 	@echo "$(GREEN)✓ 测试完成$(NC)"
+
+# ==================== 打包部署 ====================
+package: ## 打包生产环境部署文件
+	@echo "$(BLUE)>>> 打包生产环境部署文件...$(NC)"
+	@if [ ! -f .env ]; then \
+		echo "$(RED)✗ .env 文件不存在，请先创建$(NC)"; \
+		exit 1; \
+	fi; \
+	timestamp=$$(date +%Y%m%d_%H%M%S); \
+	package_name="one-hub-prod_$$timestamp"; \
+	temp_dir="/tmp/$$package_name"; \
+	\
+	echo "$(YELLOW)>>> 创建临时目录...$(NC)"; \
+	rm -rf $$temp_dir; \
+	mkdir -p $$temp_dir; \
+	\
+	echo "$(YELLOW)>>> 复制必要文件...$(NC)"; \
+	cp docker-compose.yml $$temp_dir/; \
+	cp Dockerfile $$temp_dir/; \
+	cp Makefile $$temp_dir/; \
+	cp config.example.yaml $$temp_dir/; \
+	cp .env $$temp_dir/; \
+	cp README.md $$temp_dir/ 2>/dev/null || true; \
+	\
+	echo "$(YELLOW)>>> 复制配置目录...$(NC)"; \
+	mkdir -p $$temp_dir/clash $$temp_dir/cliproxy $$temp_dir/scripts; \
+	cp -r clash/*.yaml $$temp_dir/clash/ 2>/dev/null || true; \
+	cp -r clash/Dockerfile.* $$temp_dir/clash/ 2>/dev/null || true; \
+	cp -r clash/*.sh $$temp_dir/clash/ 2>/dev/null || true; \
+	cp -r cliproxy/*.yaml $$temp_dir/cliproxy/ 2>/dev/null || true; \
+	cp -r scripts/*.sh $$temp_dir/scripts/ 2>/dev/null || true; \
+	\
+	echo "$(YELLOW)>>> 创建必要的空目录...$(NC)"; \
+	mkdir -p $$temp_dir/data/{mysql,redis}; \
+	mkdir -p $$temp_dir/clash/subscriptions; \
+	mkdir -p $$temp_dir/cliproxy/auth; \
+	mkdir -p $$temp_dir/backups; \
+	\
+	echo "$(YELLOW)>>> 清理 Mac 系统文件...$(NC)"; \
+	find $$temp_dir -name ".DS_Store" -delete; \
+	find $$temp_dir -name "._*" -delete; \
+	find $$temp_dir -name ".Spotlight-V100" -type d -exec rm -rf {} + 2>/dev/null || true; \
+	find $$temp_dir -name ".Trashes" -type d -exec rm -rf {} + 2>/dev/null || true; \
+	find $$temp_dir -name ".fseventsd" -type d -exec rm -rf {} + 2>/dev/null || true; \
+	find $$temp_dir -name "__MACOSX" -type d -exec rm -rf {} + 2>/dev/null || true; \
+	\
+	echo "$(YELLOW)>>> 打包文件...$(NC)"; \
+	COPYFILE_DISABLE=1 tar --exclude=".git" --exclude="node_modules" --exclude=".idea" \
+		--exclude=".vscode" --exclude="*.db" --exclude="*.log" \
+		--no-xattrs --no-mac-metadata \
+		-czf $$package_name.tar.gz -C /tmp $$package_name/; \
+	\
+	echo "$(YELLOW)>>> 清理临时文件...$(NC)"; \
+	rm -rf $$temp_dir; \
+	\
+	echo "$(GREEN)✓ 打包完成: $$package_name.tar.gz$(NC)"; \
+	echo "$(BLUE)文件大小: $$(du -h $$package_name.tar.gz | cut -f1)$(NC)"; \
+	echo "$(YELLOW)⚠ 包含生产环境配置，请妥善保管！$(NC)"
+
+upload: package ## 打包并上传到远程服务器
+	@latest_package=$$(ls -t one-hub-prod_*.tar.gz 2>/dev/null | head -1); \
+	if [ -z "$$latest_package" ]; then \
+		echo "$(RED)✗ 未找到打包文件$(NC)"; \
+		exit 1; \
+	fi; \
+	echo "$(BLUE)>>> 上传到远程服务器...$(NC)"; \
+	echo "$(YELLOW)文件: $$latest_package$(NC)"; \
+	scp $$latest_package ali:/opt/one_hub/; \
+	echo "$(GREEN)✓ 上传完成$(NC)"; \
+	echo ""; \
+	echo "$(YELLOW)远程服务器部署命令:$(NC)"; \
+	echo "  ssh ali"; \
+	echo "  cd /opt/one_hub"; \
+	echo "  tar -xzf $$latest_package"; \
+	echo "  cd one-hub-prod_*"; \
+	echo "  make down && make up"
