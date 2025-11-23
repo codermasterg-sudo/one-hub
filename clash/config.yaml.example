@@ -1,0 +1,114 @@
+# Clash 配置文件示例
+# 请根据您的实际代理节点信息修改此文件
+
+# HTTP(S) 和 SOCKS5 代理端口
+port: 7890
+socks-port: 7891
+
+# 允许局域网连接
+allow-lan: true
+
+# Clash 运行模式: rule / global / direct
+mode: rule
+
+# 日志级别: info / warning / error / debug / silent
+log-level: info
+
+# RESTful API
+external-controller: 0.0.0.0:9090
+
+# 代理节点配置（请根据实际情况修改）
+proxies:
+  # 示例节点 - 请替换为您的实际节点
+  - name: "示例节点-香港"
+    type: ss
+    server: your-server.com
+    port: 8388
+    cipher: aes-256-gcm
+    password: "your-password"
+    # udp: true
+
+  # 可以添加更多节点
+  # - name: "示例节点-美国"
+  #   type: vmess
+  #   server: us-server.com
+  #   port: 443
+  #   uuid: your-uuid
+  #   alterId: 0
+  #   cipher: auto
+  #   tls: true
+
+# 代理组配置
+proxy-groups:
+  # 自动选择最快节点
+  - name: "自动选择"
+    type: url-test
+    proxies:
+      - "示例节点-香港"
+      # 添加更多节点
+    url: 'http://www.gstatic.com/generate_204'
+    interval: 300
+
+  # 手动选择
+  - name: "手动选择"
+    type: select
+    proxies:
+      - "自动选择"
+      - "示例节点-香港"
+      - "DIRECT"
+
+  # OpenAI 专用
+  - name: "OpenAI"
+    type: select
+    proxies:
+      - "自动选择"
+      - "示例节点-香港"
+
+  # Claude 专用
+  - name: "Claude"
+    type: select
+    proxies:
+      - "自动选择"
+      - "示例节点-香港"
+
+  # 国际流量
+  - name: "国际流量"
+    type: select
+    proxies:
+      - "自动选择"
+      - "手动选择"
+      - "DIRECT"
+
+# 规则配置
+rules:
+  # OpenAI 相关域名
+  - DOMAIN-SUFFIX,openai.com,OpenAI
+  - DOMAIN-SUFFIX,ai.com,OpenAI
+  - DOMAIN-KEYWORD,openai,OpenAI
+
+  # Claude / Anthropic 相关域名
+  - DOMAIN-SUFFIX,anthropic.com,Claude
+  - DOMAIN-SUFFIX,claude.ai,Claude
+  - DOMAIN-KEYWORD,anthropic,Claude
+  - DOMAIN-KEYWORD,claude,Claude
+
+  # Google Gemini
+  - DOMAIN-SUFFIX,googleapis.com,国际流量
+  - DOMAIN-SUFFIX,generativelanguage.googleapis.com,国际流量
+
+  # 其他 AI 服务
+  - DOMAIN-SUFFIX,cohere.ai,国际流量
+  - DOMAIN-SUFFIX,mistral.ai,国际流量
+
+  # 局域网地址
+  - DOMAIN-SUFFIX,local,DIRECT
+  - IP-CIDR,127.0.0.0/8,DIRECT
+  - IP-CIDR,172.16.0.0/12,DIRECT
+  - IP-CIDR,192.168.0.0/16,DIRECT
+  - IP-CIDR,10.0.0.0/8,DIRECT
+
+  # 中国大陆地址直连
+  - GEOIP,CN,DIRECT
+
+  # 其他流量使用国际流量策略
+  - MATCH,国际流量
