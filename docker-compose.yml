@@ -87,8 +87,35 @@ services:
       timeout: 10s
       retries: 3
 
-  # Claude OAuth2 代理服务 (可选，用于支持Claude Code账号认证)
-  # 取消下方注释以启用Claude OAuth2代理
+  # CLIProxyAPI - 轻量级多账号 Claude 代理（推荐）
+  # 支持多账号负载均衡，OpenAI/Anthropic 兼容格式
+  cliproxy:
+    image: ghcr.io/router-for-me/cliproxy-api:latest
+    container_name: cliproxy
+    restart: always
+    ports:
+      - "8080:8080"  # API 端口
+    volumes:
+      - ./cliproxy/auth:/app/auth              # 认证凭证目录
+      - ./cliproxy/config.yaml:/app/config.yaml  # 配置文件
+    environment:
+      - TZ=Asia/Shanghai
+      # 通过 Clash 代理访问 Claude API
+      - HTTP_PROXY=http://clash:7890
+      - HTTPS_PROXY=http://clash:7890
+    depends_on:
+      - clash
+    networks:
+      - one-hub-network
+    command: ["--config", "/app/config.yaml", "--port", "8080"]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 备选方案：ccproxy-api（单账号，简单）
+  # 如果不需要多账号负载均衡，可以使用这个
   # claude-proxy:
   #   image: caddyglow/ccproxy-api:latest
   #   container_name: claude-proxy
@@ -100,7 +127,6 @@ services:
   #     - ./claude-proxy/config:/root/.config
   #   environment:
   #     - TZ=Asia/Shanghai
-  #     # 如果需要通过clash代理访问Claude API
   #     - HTTP_PROXY=http://clash:7890
   #     - HTTPS_PROXY=http://clash:7890
   #   depends_on:

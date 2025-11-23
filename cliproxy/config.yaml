@@ -1,0 +1,98 @@
+# CLIProxyAPI 配置文件
+# 用于 One-Hub 集成的轻量级多账号 Claude 代理
+
+# 服务端口
+port: 8080
+
+# 认证目录（存储 OAuth 凭证）
+auth_dir: /app/auth
+
+# 启用的提供商
+providers:
+  # Claude Code - 支持多账号负载均衡
+  - name: claude
+    enabled: true
+    type: claude_code
+    load_balancing:
+      enabled: true
+      strategy: round_robin  # 轮询策略：round_robin, weighted, least_connections
+
+  # 可选：同时支持其他 AI CLI
+  # 如需启用，取消下方注释
+
+  # - name: gemini
+  #   enabled: true
+  #   type: gemini_cli
+  #   load_balancing:
+  #     enabled: true
+
+  # - name: codex
+  #   enabled: true
+  #   type: openai_codex
+
+# API 格式兼容性
+api_compatibility:
+  openai: true          # 支持 OpenAI 格式 API
+  anthropic: true       # 支持 Anthropic 原生格式
+
+# 日志配置
+log_level: info         # debug, info, warn, error
+
+# 流式响应支持
+streaming: true
+
+# 函数调用支持
+function_calling: true
+
+# 多模态支持（文本+图像）
+multimodal: true
+
+# 性能配置
+performance:
+  # 连接池
+  connection_pool:
+    max_connections: 100
+    idle_timeout: 300
+    max_idle_connections: 10
+
+  # 请求超时（秒）
+  request_timeout: 300
+
+  # 并发控制
+  max_concurrent_requests: 50
+
+# 认证配置
+auth:
+  # 自动刷新令牌
+  auto_refresh: true
+
+  # 刷新间隔（秒）
+  refresh_interval: 3600
+
+  # 提前刷新时间（秒），在令牌过期前多久刷新
+  refresh_before_expiry: 600
+
+  # 失败重试
+  retry_on_failure: true
+  retry_attempts: 3
+
+# 监控（可选）
+monitoring:
+  enabled: false
+
+  # Prometheus metrics
+  prometheus:
+    enabled: false
+    port: 9090
+
+  # 指标类型
+  metrics:
+    - request_count
+    - response_time
+    - account_usage
+    - error_rate
+
+# 缓存配置（可选）
+cache:
+  enabled: false
+  ttl: 3600  # 秒

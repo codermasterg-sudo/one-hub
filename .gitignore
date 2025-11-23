@@ -23,6 +23,7 @@ data/
 clash/ui/
 claude-proxy/credentials/
 claude-proxy/config/
+cliproxy/auth/
 
 # Claude 凭证文件
 .claude/
