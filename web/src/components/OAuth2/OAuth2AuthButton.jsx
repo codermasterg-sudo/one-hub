@@ -28,6 +28,7 @@ function OAuth2AuthButton({ provider, onSuccess, disabled = false, buttonText, b
   const [loading, setLoading] = useState(false);
   const [authData, setAuthData] = useState(null);
   const [code, setCode] = useState('');
+  const [proxy, setProxy] = useState('');
 
   // 步骤 1：获取授权 URL
   const handleStartAuth = async () => {
@@ -69,11 +70,18 @@ function OAuth2AuthButton({ provider, onSuccess, disabled = false, buttonText, b
 
     setLoading(true);
     try {
-      const res = await API.post('/api/oauth2/exchange', {
+      const requestBody = {
         provider: authData.provider,
         code: code.trim(),
         state: authData.state
-      });
+      };
+
+      // 如果配置了代理，添加到请求中
+      if (proxy.trim()) {
+        requestBody.proxy = proxy.trim();
+      }
+
+      const res = await API.post('/api/oauth2/exchange', requestBody);
 
       if (res.data.success) {
         showSuccess('授权成功！');
@@ -101,6 +109,7 @@ function OAuth2AuthButton({ provider, onSuccess, disabled = false, buttonText, b
   const handleClose = () => {
     setOpen(false);
     setCode('');
+    setProxy('');
     setAuthData(null);
   };
 
@@ -191,6 +200,16 @@ function OAuth2AuthButton({ provider, onSuccess, disabled = false, buttonText, b
               multiline
               rows={2}
               helperText="请完整复制授权后显示的授权码"
+            />
+
+            <TextField
+              fullWidth
+              label="代理地址（可选）"
+              placeholder="例如：http://127.0.0.1:7890 或 socks5://127.0.0.1:7890"
+              value={proxy}
+              onChange={(e) => setProxy(e.target.value)}
+              disabled={loading}
+              helperText="如遇到 Cloudflare 拦截，请配置代理地址"
             />
           </Stack>
         </DialogContent>

@@ -15,46 +15,173 @@ echo -e "${BLUE}║          One Hub 生产环境打包工具                   
 echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
+# 默认配置
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
+# 解析命令行参数
+WITH_IMAGE=false
+AUTO_MODE=false
+CUSTOM_VERSION=""
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --with-image)
+            WITH_IMAGE=true
+            shift
+            ;;
+        --auto)
+            AUTO_MODE=true
+            shift
+            ;;
+        --version|-v)
+            CUSTOM_VERSION="$2"
+            shift 2
+            ;;
+        --help|-h)
+            echo "使用方式: $0 [选项]"
+            echo ""
+            echo "选项:"
+            echo "  --with-image        包含 Docker 镜像文件"
+            echo "  --auto              自动模式（使用默认配置）"
+            echo "  --version, -v VER   指定版本号（如：v1.0.0）"
+            echo "  --help, -h          显示此帮助信息"
+            echo ""
+            echo "示例:"
+            echo "  $0                          # 交互式打包，自动检测版本"
+            echo "  $0 --with-image             # 打包并包含镜像"
+            echo "  $0 --auto                   # 自动模式，使用默认配置"
+            echo "  $0 --version v1.2.3         # 指定版本号为 v1.2.3"
+            echo "  $0 --with-image -v v1.2.3   # 包含镜像并指定版本"
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}未知参数: $1${NC}"
+            echo "使用 --help 查看帮助"
+            exit 1
+            ;;
+    esac
+done
+
 # 获取版本信息
-if [ -f VERSION ]; then
-    VERSION=$(cat VERSION)
+if [ -n "$CUSTOM_VERSION" ]; then
+    # 使用命令行指定的版本
+    VERSION="$CUSTOM_VERSION"
+    echo -e "${GREEN}>>> 使用指定版本: ${VERSION}${NC}"
+elif [ -f VERSION ] && [ -s VERSION ]; then
+    # 从 VERSION 文件读取
+    VERSION=$(cat VERSION | tr -d '[:space:]')
+    echo -e "${BLUE}>>> 从 VERSION 文件读取版本: ${VERSION}${NC}"
 else
-    VERSION="latest"
+    # 尝试从 git 获取版本
+    VERSION=$(git describe --tags 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || echo "v1.0.0")
+    echo -e "${YELLOW}>>> 从 Git 检测版本: ${VERSION}${NC}"
 fi
 
-# 默认配置
+# 确保版本号不为空
+if [ -z "$VERSION" ]; then
+    VERSION="v1.0.0"
+fi
+
+# 验证版本号格式（可选，建议添加）
+if ! [[ "$VERSION" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+.*$ ]]; then
+    echo -e "${YELLOW}警告: 版本号格式可能不标准: ${VERSION}${NC}"
+    echo -e "${YELLOW}建议使用格式: v1.2.3 或 1.2.3${NC}"
+    read -p "是否继续？(y/n) [y]: " continue_build
+    continue_build=${continue_build:-y}
+    if [ "$continue_build" != "y" ]; then
+        echo "打包已取消"
+        exit 0
+    fi
+fi
+
 PACKAGE_NAME="one-hub-prod-${VERSION}"
 PACKAGE_DIR="./dist/${PACKAGE_NAME}"
 PACKAGE_FILE="./dist/${PACKAGE_NAME}.tar.gz"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
 # 询问打包选项
-echo -e "${BLUE}>>> 打包配置${NC}"
-echo ""
+if [ "$AUTO_MODE" = false ]; then
+    echo -e "${BLUE}>>> 打包配置${NC}"
+    echo ""
 
-# 是否包含示例配置
-read -p "是否包含示例配置文件？(y/n) [y]: " include_example
-include_example=${include_example:-y}
+    # 是否包含镜像
+    if [ "$WITH_IMAGE" = false ]; then
+        read -p "是否包含 Docker 镜像文件？(y/n) [y]: " include_image
+        include_image=${include_image:-y}
+        if [ "$include_image" = "y" ]; then
+            WITH_IMAGE=true
+        fi
+    fi
 
-# 是否包含文档
-read -p "是否包含部署文档？(y/n) [y]: " include_docs
-include_docs=${include_docs:-y}
+    # 是否包含示例配置
+    read -p "是否包含示例配置文件？(y/n) [y]: " include_example
+    include_example=${include_example:-y}
 
-# 打包模式
-echo ""
-echo -e "${BLUE}选择打包模式:${NC}"
-echo "  1) 完整打包（包含所有文件）"
-echo "  2) 最小打包（仅核心文件）"
-echo "  3) 自定义打包"
-read -p "请选择 (1/2/3) [1]: " package_mode
-package_mode=${package_mode:-1}
+    # 是否包含文档
+    read -p "是否包含部署文档？(y/n) [y]: " include_docs
+    include_docs=${include_docs:-y}
+
+    # 打包模式
+    echo ""
+    echo -e "${BLUE}选择打包模式:${NC}"
+    echo "  1) 完整打包（包含所有文件）"
+    echo "  2) 最小打包（仅核心文件）"
+    echo "  3) 自定义打包"
+    read -p "请选择 (1/2/3) [1]: " package_mode
+    package_mode=${package_mode:-1}
+else
+    # 自动模式默认值
+    include_example=y
+    include_docs=y
+    package_mode=1
+fi
 
 echo ""
 echo -e "${BLUE}>>> 开始打包...${NC}"
 
-# 清理旧的打包目录
+# ============================================
+# 构建 Docker 镜像（如果需要）
+# ============================================
+if [ "$WITH_IMAGE" = true ]; then
+    echo ""
+    echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${BLUE}║              构建 Docker 镜像                          ║${NC}"
+    echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+
+    if [ ! -f "scripts/build-image.sh" ]; then
+        echo -e "${RED}错误: 未找到镜像构建脚本 scripts/build-image.sh${NC}"
+        exit 1
+    fi
+
+    # 调用镜像构建脚本
+    bash scripts/build-image.sh --tag "${VERSION}"
+
+    IMAGE_FILE="./dist/one-hub-${VERSION}.tar.gz"
+    if [ ! -f "$IMAGE_FILE" ]; then
+        echo -e "${RED}错误: 镜像文件未生成${NC}"
+        exit 1
+    fi
+
+    echo ""
+    echo -e "${GREEN}✓ 镜像构建完成${NC}"
+fi
+
+# 清理旧的打包目录（保留镜像文件）
+if [ "$WITH_IMAGE" = true ] && [ -f "./dist/one-hub-${VERSION}.tar.gz" ]; then
+    # 临时保存镜像文件
+    mkdir -p /tmp/one-hub-package-temp
+    cp ./dist/one-hub-${VERSION}.tar.gz* /tmp/one-hub-package-temp/
+fi
+
 rm -rf ./dist
 mkdir -p "$PACKAGE_DIR"
+
+# 恢复镜像文件
+if [ "$WITH_IMAGE" = true ] && [ -d "/tmp/one-hub-package-temp" ]; then
+    mkdir -p ./dist
+    cp /tmp/one-hub-package-temp/* ./dist/
+    rm -rf /tmp/one-hub-package-temp
+fi
 
 # ============================================
 # 核心文件（必需）
@@ -87,6 +214,7 @@ script_files=(
     "scripts/restore.sh"
     "scripts/quick-start.sh"
     "scripts/generate-env.sh"
+    "scripts/load-image.sh"
 )
 
 for file in "${script_files[@]}"; do
@@ -98,6 +226,36 @@ for file in "${script_files[@]}"; do
         echo -e "  ${YELLOW}⚠ $file (未找到，跳过)${NC}"
     fi
 done
+
+# ============================================
+# Docker 镜像文件
+# ============================================
+if [ "$WITH_IMAGE" = true ]; then
+    echo -e "${YELLOW}>>> 打包 Docker 镜像...${NC}"
+
+    mkdir -p "$PACKAGE_DIR/images"
+
+    IMAGE_TAR="./dist/one-hub-${VERSION}.tar.gz"
+    IMAGE_MD5="./dist/one-hub-${VERSION}.tar.gz.md5"
+    IMAGE_INFO="./dist/one-hub-${VERSION}.info"
+
+    if [ -f "$IMAGE_TAR" ]; then
+        cp "$IMAGE_TAR" "$PACKAGE_DIR/images/"
+        echo "  ✓ $(basename $IMAGE_TAR)"
+
+        if [ -f "$IMAGE_MD5" ]; then
+            cp "$IMAGE_MD5" "$PACKAGE_DIR/images/"
+            echo "  ✓ $(basename $IMAGE_MD5)"
+        fi
+
+        if [ -f "$IMAGE_INFO" ]; then
+            cp "$IMAGE_INFO" "$PACKAGE_DIR/images/"
+            echo "  ✓ $(basename $IMAGE_INFO)"
+        fi
+    else
+        echo -e "  ${RED}✗ 镜像文件未找到${NC}"
+    fi
+fi
 
 # ============================================
 # 配置文件示例
@@ -197,6 +355,7 @@ cat > "$PACKAGE_DIR/MANIFEST.txt" << MANIFEST_EOF
   版本: ${VERSION}
   打包时间: ${TIMESTAMP}
   打包模式: $([ "$package_mode" = "1" ] && echo "完整模式" || echo "最小模式")
+  包含镜像: $([ "$WITH_IMAGE" = true ] && echo "是" || echo "否")
 
 包含文件:
 $(cd "$PACKAGE_DIR" && find . -type f ! -name ".gitkeep" ! -name "MANIFEST.txt" | sort)
@@ -205,10 +364,18 @@ $(cd "$PACKAGE_DIR" && find . -type f ! -name ".gitkeep" ! -name "MANIFEST.txt" 
 $(cd "$PACKAGE_DIR" && tree -L 2 2>/dev/null || find . -type d | sort)
 
 部署步骤:
-  1. 解压此压缩包到目标服务器
-  2. 进入解压目录
-  3. 运行初始化: make -f Makefile.prod init
-  4. 启动服务: make -f Makefile.prod start
+$(if [ "$WITH_IMAGE" = true ]; then
+echo "  1. 解压此压缩包到目标服务器"
+echo "  2. 进入解压目录"
+echo "  3. 加载 Docker 镜像: bash scripts/load-image.sh"
+echo "  4. 运行初始化: make -f Makefile.prod init"
+echo "  5. 启动服务: make -f Makefile.prod start"
+else
+echo "  1. 解压此压缩包到目标服务器"
+echo "  2. 进入解压目录"
+echo "  3. 运行初始化: make -f Makefile.prod init"
+echo "  4. 启动服务: make -f Makefile.prod start"
+fi)
 
 快速部署:
   bash scripts/quick-start.sh
@@ -221,11 +388,18 @@ $(cd "$PACKAGE_DIR" && tree -L 2 2>/dev/null || find . -type d | sort)
   • 请妥善保管生成的 .env.production 文件
   • USER_TOKEN_SECRET 一旦设置不可修改
   • 建议配置 HTTPS 反向代理
+$(if [ "$WITH_IMAGE" = true ]; then
+echo "  • 本包包含 Docker 镜像，无需联网拉取"
+echo "  • 镜像文件位于 images/ 目录"
+fi)
 
 更多信息请查看:
   • DEPLOY.md - 详细部署文档
   • PRODUCTION.md - 生产环境指南
   • README.md - 项目说明
+$(if [ "$WITH_IMAGE" = true ]; then
+echo "  • images/one-hub-${VERSION}.info - 镜像信息"
+fi)
 
 MANIFEST_EOF
 
@@ -475,7 +649,10 @@ echo ""
 echo -e "${BLUE}>>> 压缩打包...${NC}"
 
 cd ./dist
-tar -czf "${PACKAGE_NAME}.tar.gz" "$PACKAGE_NAME"
+# 使用 --no-xattrs 避免 macOS 扩展属性导致的兼容性问题
+# 设置 COPYFILE_DISABLE=1 禁用 Apple 特有的元数据
+COPYFILE_DISABLE=1 tar --no-xattrs -czf "${PACKAGE_NAME}.tar.gz" "$PACKAGE_NAME" 2>/dev/null || \
+  tar -czf "${PACKAGE_NAME}.tar.gz" "$PACKAGE_NAME"
 cd ..
 
 # 计算文件大小和 MD5

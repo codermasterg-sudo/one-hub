@@ -158,6 +158,9 @@ logs-mysql: ## 查看 MySQL 日志
 logs-redis: ## 查看 Redis 日志
 	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) logs -f redis
 
+logs-clash: ## 查看 Clash 代理日志
+	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) logs -f clash
+
 status: ## 查看服务状态
 	@echo ">>> 服务状态"
 	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) ps
@@ -170,7 +173,7 @@ health: ## 检查服务健康状态
 	@echo ""
 	@echo ">>> 应用健康检查..."
 	@sleep 2
-	@curl -sf http://localhost:3000/api/status >/dev/null 2>&1 && \
+	@curl -sf http://localhost:8001/api/status >/dev/null 2>&1 && \
 		echo "✓ 应用运行正常" || \
 		echo "✗ 应用健康检查失败"
 
@@ -287,13 +290,96 @@ down: stop ## 停止服务（stop 的别名）
 
 up: start ## 启动服务（start 的别名）
 
+##@ Clash 代理管理
+
+clash-start: ## 启动 Clash 代理服务
+	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) up -d clash
+	@echo "✓ Clash 代理已启动"
+
+clash-stop: ## 停止 Clash 代理服务
+	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) stop clash
+	@echo "✓ Clash 代理已停止"
+
+clash-restart: ## 重启 Clash 代理服务
+	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) restart clash
+	@echo "✓ Clash 代理已重启"
+
+clash-update: ## 手动更新 Clash 配置
+	@echo ">>> 更新 Clash 配置..."
+	@. $(ENV_FILE) 2>/dev/null; \
+	if [ -z "$$CLASH_CONFIG_URL" ]; then \
+		echo "错误: CLASH_CONFIG_URL 未配置"; \
+		exit 1; \
+	fi; \
+	wget -q -O $(DATA_DIR)/clash/config.yaml.tmp "$$CLASH_CONFIG_URL" && \
+	mv $(DATA_DIR)/clash/config.yaml.tmp $(DATA_DIR)/clash/config.yaml && \
+	echo "✓ 配置更新成功，重启 Clash 生效" || \
+	echo "✗ 配置更新失败"
+
+clash-reload: clash-update clash-restart ## 更新配置并重启 Clash
+
+clash-status: ## 查看 Clash 代理状态
+	@echo ">>> Clash 服务状态"
+	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) ps clash
+	@echo ""
+	@echo ">>> 代理端口"
+	@echo "  HTTP:   7890"
+	@echo "  SOCKS5: 7891"
+	@echo "  API:    9090"
+
+clash-shell: ## 进入 Clash 容器 shell
+	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) exec clash /bin/sh
+
+clash-config: ## 查看当前 Clash 配置
+	@docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) exec clash cat /root/.config/clash/config.yaml 2>/dev/null || \
+	cat $(DATA_DIR)/clash/config.yaml 2>/dev/null || \
+	echo "未找到配置文件"
+
 top: stats ## 查看资源使用（stats 的别名）
+
+##@ 镜像管理
+
+image-load: ## 加载 Docker 镜像
+	@echo ">>> 加载 Docker 镜像..."
+	@bash scripts/load-image.sh
+
+image-list: ## 列出本地镜像
+	@echo ">>> One Hub 镜像列表"
+	@docker images one-hub --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" 2>/dev/null || echo "未找到镜像"
+
+image-info: ## 显示镜像详细信息
+	@if [ -f images/*.info ]; then \
+		echo ">>> 镜像信息"; \
+		cat images/*.info; \
+	else \
+		echo "未找到镜像信息文件"; \
+	fi
+
+image-remove: ## 删除本地镜像
+	@echo "╔════════════════════════════════════════════════════════╗"
+	@echo "║                  ⚠️ 删除镜像 ⚠️                         ║"
+	@echo "╚════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "当前镜像:"
+	@docker images one-hub 2>/dev/null || echo "  无镜像"
+	@echo ""
+	@read -p "确认删除所有 one-hub 镜像？(y/n) [n]: " confirm; \
+	if [ "$$confirm" = "y" ]; then \
+		docker rmi $$(docker images one-hub -q) 2>/dev/null || echo "无镜像需要删除"; \
+		echo "✓ 镜像已删除"; \
+	else \
+		echo "操作已取消"; \
+	fi
 
 ##@ 打包和分发
 
-package: ## 打包生产环境部署文件
-	@echo ">>> 开始打包生产环境..."
-	@bash scripts/package-prod.sh
+package: ## 打包生产环境部署文件（包含镜像，可用 VERSION=v1.0.0 指定版本）
+	@echo ">>> 开始打包生产环境（包含镜像）..."make -f Makefile.prod package VERSION=v1.2.3
+	@bash scripts/package-prod.sh --with-image $(if $(VERSION),--version $(VERSION))
+
+package-minimal: ## 打包生产环境部署文件（不包含镜像，可用 VERSION=v1.0.0 指定版本）
+	@echo ">>> 开始打包生产环境（不包含镜像）..."
+	@bash scripts/package-prod.sh $(if $(VERSION),--version $(VERSION))
 
 package-check: ## 检查打包文件
 	@if [ -f dist/*.tar.gz ]; then \

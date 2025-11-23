@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"one-api/common"
 	"one-api/common/oauth2"
@@ -81,12 +82,13 @@ func GetOAuth2AuthURL(c *gin.Context) {
 
 // ExchangeOAuth2Code 交换授权码获取 refresh_token
 // POST /api/oauth2/exchange
-// Body: {"provider": "claude", "code": "xxx", "state": "xxx"}
+// Body: {"provider": "claude", "code": "xxx", "state": "xxx", "proxy": "socks5://127.0.0.1:7890"}
 func ExchangeOAuth2Code(c *gin.Context) {
 	var req struct {
 		Provider string `json:"provider" binding:"required"`
 		Code     string `json:"code" binding:"required"`
 		State    string `json:"state" binding:"required"`
+		Proxy    string `json:"proxy"` // 可选的代理配置
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -107,8 +109,8 @@ func ExchangeOAuth2Code(c *gin.Context) {
 		return
 	}
 
-	// 创建 Exchanger
-	exchanger := oauth2.NewDefaultExchanger(config)
+	// 创建 Exchanger（支持代理）
+	exchanger := oauth2.NewDefaultExchangerWithProxy(config, req.Proxy)
 
 	// 交换授权码
 	ctx := context.Background()
@@ -125,18 +127,19 @@ func ExchangeOAuth2Code(c *gin.Context) {
 		"data": gin.H{
 			"refresh_token": token.RefreshToken,
 			"access_token":  token.AccessToken,
-			"expires_in":    int(token.Expiry.Sub(common.GetTimeNow()).Seconds()),
+			"expires_in":    int(token.Expiry.Sub(time.Now()).Seconds()),
 		},
 	})
 }
 
 // TestOAuth2Token 测试 OAuth2 Token 是否有效
 // POST /api/oauth2/test
-// Body: {"provider": "claude", "refresh_token": "xxx"}
+// Body: {"provider": "claude", "refresh_token": "xxx", "proxy": "socks5://127.0.0.1:7890"}
 func TestOAuth2Token(c *gin.Context) {
 	var req struct {
 		Provider     string `json:"provider" binding:"required"`
 		RefreshToken string `json:"refresh_token" binding:"required"`
+		Proxy        string `json:"proxy"` // 可选的代理配置
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -144,8 +147,8 @@ func TestOAuth2Token(c *gin.Context) {
 		return
 	}
 
-	// 创建 Manager 并尝试获取 access_token
-	manager, err := oauth2.NewManager(req.Provider, req.RefreshToken)
+	// 创建 Manager 并尝试获取 access_token（支持代理）
+	manager, err := oauth2.NewManagerWithProxy(req.Provider, req.RefreshToken, req.Proxy)
 	if err != nil {
 		common.APIRespondWithError(c, http.StatusOK, err)
 		return
@@ -163,7 +166,7 @@ func TestOAuth2Token(c *gin.Context) {
 		"message": "OAuth2 token is valid",
 		"data": gin.H{
 			"valid":      true,
-			"expires_in": int(token.Expiry.Sub(common.GetTimeNow()).Seconds()),
+			"expires_in": int(token.Expiry.Sub(time.Now()).Seconds()),
 		},
 	})
 }

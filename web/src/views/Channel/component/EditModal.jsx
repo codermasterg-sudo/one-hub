@@ -828,16 +828,16 @@ const EditModal = ({ open, channelId, onCancel, onOk, groupOptions, isTag, model
                 </FormControl>
 
                 {/* OAuth2 授权按钮 */}
-                {currentConfig.oauth2 && currentConfig.oauth2.enabled && (
+                {typeConfig[values.type]?.oauth2?.enabled && (
                   <Box sx={{ ...theme.typography.otherInput }}>
                     <OAuth2AuthButton
-                      provider={currentConfig.oauth2.provider}
+                      provider={typeConfig[values.type].oauth2.provider}
                       onSuccess={(refreshToken) => {
                         setFieldValue('key', refreshToken);
                         showSuccess('OAuth2 授权成功，Refresh Token 已自动填入');
                       }}
                       disabled={batchAdd}
-                      buttonText={`授权 ${currentConfig.displayName || currentConfig.oauth2.provider}`}
+                      buttonText={`授权 ${typeConfig[values.type].displayName || typeConfig[values.type].oauth2.provider}`}
                       buttonVariant="outlined"
                     />
                     <FormHelperText>

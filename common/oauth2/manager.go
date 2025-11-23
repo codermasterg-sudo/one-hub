@@ -77,6 +77,8 @@ func (m *Manager) GetAccessToken(ctx context.Context) (*oauth2.Token, error) {
 	// 执行刷新
 	newToken, err := m.refresher.RefreshToken(ctx, m.refreshToken)
 	if err != nil {
+		// 记录刷新失败的详细错误
+		fmt.Printf("[OAuth2] Token refresh failed for provider %s: %v\n", m.config.ProviderName, err)
 		return nil, err
 	}
 
