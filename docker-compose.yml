@@ -1,4 +1,4 @@
-version: "3.4"
+version: '3.8'
 
 services:
   one-hub:
@@ -6,7 +6,7 @@ services:
     container_name: one-hub
     restart: always
     ports:
-      - "3000:3000"
+      - "8001:3000"
     volumes:
       - ./data:/data
     env_file:
@@ -75,10 +75,10 @@ services:
     image: dreamacro/clash-premium:latest
     container_name: clash
     restart: always
-    ports:
-      - "7890:7890"  # HTTP/HTTPS 代理端口
-      - "7891:7891"  # SOCKS5 代理端口
-      - "9090:9090"  # RESTful API 端口
+#    ports:
+#      - "7890:7890"  # HTTP/HTTPS 代理端口
+#      - "7891:7891"  # SOCKS5 代理端口
+#      - "9090:9090"  # RESTful API 端口
     volumes:
       - ./clash/config.yaml:/root/.config/clash/config.yaml  # 主配置文件
       - ./clash/subscriptions:/root/.config/clash/subscriptions  # 订阅缓存目录
@@ -95,17 +95,36 @@ services:
       timeout: 10s
       retries: 3
 
+  # Clash 订阅自动更新服务
+  # 每小时自动更新订阅文件，无需手动操作
+  clash-subscription-updater:
+    build:
+      context: ./clash
+      dockerfile: Dockerfile.subscription-updater
+    container_name: clash-subscription-updater
+    restart: always
+    volumes:
+      - ./clash:/clash-config  # 挂载 clash 配置目录
+    env_file:
+      - .env
+    environment:
+      - TZ=${TZ}
+    networks:
+      - one-hub-network
+    depends_on:
+      - clash
+
   # CLIProxyAPI - 轻量级多账号 Claude 代理（推荐）
   # 支持多账号负载均衡，OpenAI/Anthropic 兼容格式
   cliproxy:
-    image: ghcr.io/router-for-me/cliproxy-api:latest
+    image: eceasy/cli-proxy-api:latest
     container_name: cliproxy
     restart: always
-    ports:
-      - "${CLIPROXY_PORT:-8080}:8080"  # API 端口
+#    ports:
+#      - "${CLIPROXY_PORT:-8080}:8080"  # API 端口
     volumes:
-      - ./cliproxy/auth:/app/auth              # 认证凭证目录
-      - ./cliproxy/config.yaml:/app/config.yaml  # 配置文件
+      - ./cliproxy/auth:/root/.cli-proxy-api              # 认证凭证目录
+      - ./cliproxy/config.yaml:/CLIProxyAPI/config.yaml  # 配置文件
     env_file:
       - .env
     environment:
@@ -117,32 +136,11 @@ services:
       - clash
     networks:
       - one-hub-network
-    command: ["--config", "/app/config.yaml", "--port", "8080"]
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/health"]
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/"]
       interval: 30s
       timeout: 10s
       retries: 3
-
-  # 备选方案：ccproxy-api（单账号，简单）
-  # 如果不需要多账号负载均衡，可以使用这个
-  # claude-proxy:
-  #   image: caddyglow/ccproxy-api:latest
-  #   container_name: claude-proxy
-  #   restart: always
-  #   ports:
-  #     - "8000:8000"  # Claude OAuth2 代理端口
-  #   volumes:
-  #     - ./claude-proxy/credentials:/root/.claude
-  #     - ./claude-proxy/config:/root/.config
-  #   environment:
-  #     - TZ=Asia/Shanghai
-  #     - HTTP_PROXY=http://clash:7890
-  #     - HTTPS_PROXY=http://clash:7890
-  #   depends_on:
-  #     - clash
-  #   networks:
-  #     - one-hub-network
 
 networks:
   one-hub-network:

@@ -33,3 +33,6 @@ cliproxy/auth/
 *.sql
 *.tar.gz
 *-backup.*
+
+# 打包文件
+one-hub-prod_*.tar.gz

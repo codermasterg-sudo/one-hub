@@ -22,8 +22,8 @@ port: 8080
 
 # 认证凭证存储目录
 # 存储 OAuth2 令牌和会话数据
-# Docker 环境: /app/auth (已在 docker-compose.yml 中挂载)
-auth_dir: /app/auth
+# Docker 环境: /root/.cli-proxy-api (已在 docker-compose.yml 中挂载)
+auth-dir: /root/.cli-proxy-api
 
 # ========================================
 # AI 提供商配置
