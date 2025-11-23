@@ -1,0 +1,164 @@
+# Clash 订阅配置示例
+# 支持 URL 订阅、定时刷新、自动选择美国节点
+
+# HTTP(S) 和 SOCKS5 代理端口
+port: 7890
+socks-port: 7891
+
+# 允许局域网连接
+allow-lan: true
+
+# Clash 运行模式: rule / global / direct
+mode: rule
+
+# 日志级别: info / warning / error / debug / silent
+log-level: info
+
+# RESTful API
+external-controller: 0.0.0.0:9090
+
+# 代理节点订阅配置
+proxy-providers:
+  # 主订阅源
+  my-subscription:
+    type: http
+    url: "https://your-subscription-url.com/link?token=xxxxx"  # 替换为您的订阅链接
+    interval: 3600        # 自动更新间隔（秒），3600 = 1小时
+    path: ./subscriptions/my-subscription.yaml
+    health-check:
+      enable: true
+      interval: 300       # 健康检查间隔（秒）
+      url: http://www.gstatic.com/generate_204
+
+  # 可选：第二个订阅源（备用）
+  # backup-subscription:
+  #   type: http
+  #   url: "https://backup-subscription-url.com/link?token=xxxxx"
+  #   interval: 3600
+  #   path: ./subscriptions/backup-subscription.yaml
+  #   health-check:
+  #     enable: true
+  #     interval: 300
+  #     url: http://www.gstatic.com/generate_204
+
+# 代理组配置
+proxy-groups:
+  # 美国节点 - 自动选择最快的美国节点
+  - name: "🇺🇸 美国节点"
+    type: url-test          # 自动测速选择
+    use:
+      - my-subscription     # 使用订阅源
+    filter: "(?i)美国|US|United States|America|Los Angeles|San Francisco|Silicon Valley|New York|Seattle|Chicago"
+    url: 'http://www.gstatic.com/generate_204'
+    interval: 300           # 测速间隔（秒）
+    tolerance: 50           # 容差值（ms），延迟差异小于此值不切换
+
+  # 香港节点 - 备用
+  - name: "🇭🇰 香港节点"
+    type: url-test
+    use:
+      - my-subscription
+    filter: "(?i)香港|HK|Hong Kong|HongKong"
+    url: 'http://www.gstatic.com/generate_204'
+    interval: 300
+
+  # 日本节点 - 备用
+  - name: "🇯🇵 日本节点"
+    type: url-test
+    use:
+      - my-subscription
+    filter: "(?i)日本|JP|Japan|Tokyo|Osaka"
+    url: 'http://www.gstatic.com/generate_204'
+    interval: 300
+
+  # 手动选择
+  - name: "🚀 手动选择"
+    type: select
+    proxies:
+      - "🇺🇸 美国节点"
+      - "🇭🇰 香港节点"
+      - "🇯🇵 日本节点"
+      - DIRECT
+    use:
+      - my-subscription     # 也可以手动选择订阅中的任意节点
+
+  # 自动选择 - 从所有节点中选最快的
+  - name: "⚡ 自动选择"
+    type: url-test
+    use:
+      - my-subscription
+    url: 'http://www.gstatic.com/generate_204'
+    interval: 300
+
+  # Claude / Anthropic 专用 - 使用美国节点
+  - name: "🤖 Claude"
+    type: select
+    proxies:
+      - "🇺🇸 美国节点"      # 优先使用美国节点
+      - "⚡ 自动选择"        # 备选：自动选择
+      - "🚀 手动选择"        # 备选：手动选择
+      - "🇭🇰 香港节点"      # 备选：香港节点
+
+  # OpenAI 专用
+  - name: "🌐 OpenAI"
+    type: select
+    proxies:
+      - "🇺🇸 美国节点"
+      - "⚡ 自动选择"
+      - "🇭🇰 香港节点"
+
+  # 国际流量
+  - name: "🌍 国际流量"
+    type: select
+    proxies:
+      - "⚡ 自动选择"
+      - "🇺🇸 美国节点"
+      - "🚀 手动选择"
+      - DIRECT
+
+  # 故障转移 - 自动切换可用节点
+  - name: "♻️ 故障转移"
+    type: fallback
+    use:
+      - my-subscription
+    url: 'http://www.gstatic.com/generate_204'
+    interval: 300
+
+# 规则配置
+rules:
+  # Claude / Anthropic 相关域名 - 使用美国节点
+  - DOMAIN-SUFFIX,anthropic.com,🤖 Claude
+  - DOMAIN-SUFFIX,claude.ai,🤖 Claude
+  - DOMAIN-KEYWORD,anthropic,🤖 Claude
+  - DOMAIN-KEYWORD,claude,🤖 Claude
+
+  # OpenAI 相关域名
+  - DOMAIN-SUFFIX,openai.com,🌐 OpenAI
+  - DOMAIN-SUFFIX,ai.com,🌐 OpenAI
+  - DOMAIN-KEYWORD,openai,🌐 OpenAI
+
+  # Google Gemini
+  - DOMAIN-SUFFIX,googleapis.com,🌍 国际流量
+  - DOMAIN-SUFFIX,generativelanguage.googleapis.com,🌍 国际流量
+  - DOMAIN-SUFFIX,google.com,🌍 国际流量
+
+  # 其他 AI 服务
+  - DOMAIN-SUFFIX,cohere.ai,🌍 国际流量
+  - DOMAIN-SUFFIX,mistral.ai,🌍 国际流量
+
+  # GitHub
+  - DOMAIN-SUFFIX,github.com,🌍 国际流量
+  - DOMAIN-SUFFIX,githubusercontent.com,🌍 国际流量
+
+  # 局域网地址 - 直连
+  - DOMAIN-SUFFIX,local,DIRECT
+  - IP-CIDR,127.0.0.0/8,DIRECT
+  - IP-CIDR,172.16.0.0/12,DIRECT
+  - IP-CIDR,192.168.0.0/16,DIRECT
+  - IP-CIDR,10.0.0.0/8,DIRECT
+
+  # 中国大陆地址 - 直连
+  - GEOIP,CN,DIRECT
+
+  # 其他流量 - 使用国际流量策略
+  - MATCH,🌍 国际流量
