@@ -76,6 +76,7 @@ services:
       - "9090:9090"  # RESTful API 端口
     volumes:
       - ./clash/config.yaml:/root/.config/clash/config.yaml:ro
+      - ./clash/subscriptions:/root/.config/clash/subscriptions  # 订阅缓存目录
       - ./clash/ui:/ui:ro
     environment:
       - TZ=Asia/Shanghai
