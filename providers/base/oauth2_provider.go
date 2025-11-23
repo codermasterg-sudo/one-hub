@@ -130,8 +130,9 @@ func (b *BaseProvider) AddOAuth2Headers(headers map[string]string) {
 
 		oauth2Headers, err := oauth2Provider.GetOAuth2Headers(ctx)
 		if err != nil {
-			// OAuth2 认证失败时静默返回，让实际请求失败并返回错误
-			// 错误会在具体的 API 调用中体现
+			// OAuth2 认证失败时记录错误
+			// 添加日志帮助诊断问题
+			fmt.Printf("[OAuth2] Failed to get auth headers: %v\n", err)
 			return
 		}
 

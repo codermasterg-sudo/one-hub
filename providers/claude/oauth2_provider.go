@@ -7,6 +7,7 @@ import (
 
 	"one-api/common"
 	"one-api/common/config"
+	"one-api/common/logger"
 	"one-api/common/requester"
 	"one-api/model"
 	"one-api/providers/base"
@@ -18,11 +19,17 @@ type ClaudeOAuth2ProviderFactory struct{}
 
 // Create 创建 Claude OAuth2 Provider
 func (f ClaudeOAuth2ProviderFactory) Create(channel *model.Channel) base.ProviderInterface {
+	// 安全地获取代理地址
+	proxyAddr := ""
+	if channel.Proxy != nil {
+		proxyAddr = *channel.Proxy
+	}
+
 	provider := &ClaudeOAuth2Provider{
 		BaseProvider: base.BaseProvider{
 			Config:    getConfig(),
 			Channel:   channel,
-			Requester: requester.NewHTTPRequester(*channel.Proxy, RequestErrorHandle),
+			Requester: requester.NewHTTPRequester(proxyAddr, RequestErrorHandle),
 		},
 	}
 
@@ -31,14 +38,14 @@ func (f ClaudeOAuth2ProviderFactory) Create(channel *model.Channel) base.Provide
 	if err := provider.InitOAuth2FromChannel("claude", channel); err != nil {
 		// 如果初始化失败，记录错误但不中断创建过程
 		// 实际请求时会返回错误
-		common.SysError(fmt.Sprintf("Channel %d OAuth2 initialization failed: %v, proxy=%v, key_length=%d",
+		logger.SysError(fmt.Sprintf("Channel %d OAuth2 initialization failed: %v, proxy=%v, key_length=%d",
 			channel.Id, err, channel.Proxy, len(channel.Key)))
 	} else {
 		proxyInfo := "no proxy"
 		if channel.Proxy != nil && *channel.Proxy != "" {
 			proxyInfo = *channel.Proxy
 		}
-		common.SysLog(fmt.Sprintf("Channel %d OAuth2 initialized successfully with proxy: %s", channel.Id, proxyInfo))
+		logger.SysLog(fmt.Sprintf("Channel %d OAuth2 initialized successfully with proxy: %s", channel.Id, proxyInfo))
 	}
 
 	return provider
