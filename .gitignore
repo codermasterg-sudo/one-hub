@@ -17,3 +17,18 @@ dist
 test.yaml
 one-api
 _output
+
+# Docker 相关
+data/
+clash/ui/
+claude-proxy/credentials/
+claude-proxy/config/
+
+# Claude 凭证文件
+.claude/
+*.credentials.json
+
+# 备份文件
+*.sql
+*.tar.gz
+*-backup.*

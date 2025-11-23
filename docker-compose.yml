@@ -16,12 +16,18 @@ services:
       - USER_TOKEN_SECRET=random_string # 修改为随机字符串,32位以上
       - TZ=Asia/Shanghai
       # - HASHIDS_SALT=random_string # 可空，建议设置，字符串元素不能重复
-    #      - NODE_TYPE=slave  # 多机部署时从节点取消注释该行
-    #      - SYNC_FREQUENCY=60  # 需要定期从数据库加载数据时取消注释该行
-    #      - FRONTEND_BASE_URL=https://openai.justsong.cn  # 多机部署时从节点取消注释该行
+      # - NODE_TYPE=slave  # 多机部署时从节点取消注释该行
+      # - SYNC_FREQUENCY=60  # 需要定期从数据库加载数据时取消注释该行
+      # - FRONTEND_BASE_URL=https://openai.justsong.cn  # 多机部署时从节点取消注释该行
+      # 如果需要通过clash代理访问外部API，可以配置以下环境变量
+      # - HTTP_PROXY=http://clash:7890
+      # - HTTPS_PROXY=http://clash:7890
     depends_on:
       - redis
       - db
+      - clash
+    networks:
+      - one-hub-network
     healthcheck:
       test:
         [
@@ -36,6 +42,11 @@ services:
     image: redis:latest
     container_name: redis
     restart: always
+    networks:
+      - one-hub-network
+    volumes:
+      - ./data/redis:/data
+    command: redis-server --appendonly yes
 
   db:
     image: mysql:8.2.0
@@ -51,3 +62,52 @@ services:
       MYSQL_USER: oneapi # 创建专用用户
       MYSQL_PASSWORD: "123456" # 设置专用用户密码
       MYSQL_DATABASE: one-api # 自动创建数据库
+    networks:
+      - one-hub-network
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+  clash:
+    image: dreamacro/clash-premium:latest
+    container_name: clash
+    restart: always
+    ports:
+      - "7890:7890"  # HTTP/HTTPS 代理端口
+      - "7891:7891"  # SOCKS5 代理端口
+      - "9090:9090"  # RESTful API 端口
+    volumes:
+      - ./clash/config.yaml:/root/.config/clash/config.yaml:ro
+      - ./clash/ui:/ui:ro
+    environment:
+      - TZ=Asia/Shanghai
+    networks:
+      - one-hub-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:9090/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Claude OAuth2 代理服务 (可选，用于支持Claude Code账号认证)
+  # 取消下方注释以启用Claude OAuth2代理
+  # claude-proxy:
+  #   image: caddyglow/ccproxy-api:latest
+  #   container_name: claude-proxy
+  #   restart: always
+  #   ports:
+  #     - "8000:8000"  # Claude OAuth2 代理端口
+  #   volumes:
+  #     - ./claude-proxy/credentials:/root/.claude
+  #     - ./claude-proxy/config:/root/.config
+  #   environment:
+  #     - TZ=Asia/Shanghai
+  #     # 如果需要通过clash代理访问Claude API
+  #     - HTTP_PROXY=http://clash:7890
+  #     - HTTPS_PROXY=http://clash:7890
+  #   depends_on:
+  #     - clash
+  #   networks:
+  #     - one-hub-network
+
+networks:
+  one-hub-network:
+    driver: bridge
