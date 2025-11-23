@@ -102,23 +102,39 @@ init: ## 初始化环境（首次部署）
 	@echo "   开始初始化 One-Hub 环境"
 	@echo "=================================$(NC)"
 	@$(MAKE) check-requirements
+	@$(MAKE) check-env
 	@$(MAKE) create-dirs
-	@$(MAKE) setup-clash
-	@$(MAKE) setup-cliproxy
+	@$(MAKE) generate-config
 	@echo ""
 	@echo "$(GREEN)✓ 初始化完成！$(NC)"
 	@echo ""
 	@echo "$(YELLOW)下一步：$(NC)"
-	@echo "  1. 编辑 clash/config.yaml 添加您的订阅链接"
-	@echo "  2. 运行: make up"
-	@echo "  3. 运行: make cliproxy-login"
+	@echo "  1. 编辑 .env 文件，配置订阅链接和安全密钥"
+	@echo "  2. 运行: make config（重新生成配置）"
+	@echo "  3. 运行: make up（启动服务）"
+	@echo "  4. 运行: make cliproxy-login（登录 Claude 账号）"
 	@echo ""
 
 check-requirements: ## 检查依赖
 	@echo "$(BLUE)>>> 检查环境依赖...$(NC)"
 	@command -v docker >/dev/null 2>&1 || { echo "$(RED)✗ Docker 未安装$(NC)"; exit 1; }
 	@command -v docker-compose >/dev/null 2>&1 || { echo "$(RED)✗ Docker Compose 未安装$(NC)"; exit 1; }
+	@command -v envsubst >/dev/null 2>&1 || { echo "$(RED)✗ envsubst 未安装 (需要 gettext 包)$(NC)"; exit 1; }
 	@echo "$(GREEN)✓ 环境检查通过$(NC)"
+
+check-env: ## 检查 .env 文件
+	@echo "$(BLUE)>>> 检查 .env 配置文件...$(NC)"
+	@if [ ! -f .env ]; then \
+		if [ -f .env.example ]; then \
+			cp .env.example .env; \
+			echo "$(YELLOW)⚠ 已创建 .env 文件，请编辑配置$(NC)"; \
+		else \
+			echo "$(RED)✗ 找不到 .env 或 .env.example$(NC)"; \
+			exit 1; \
+		fi \
+	else \
+		echo "$(GREEN)✓ .env 文件已存在$(NC)"; \
+	fi
 
 create-dirs: ## 创建必要的目录
 	@echo "$(BLUE)>>> 创建目录结构...$(NC)"
@@ -128,28 +144,37 @@ create-dirs: ## 创建必要的目录
 	@mkdir -p backups
 	@echo "$(GREEN)✓ 目录创建完成$(NC)"
 
-setup-clash: ## 设置 Clash 配置
-	@echo "$(BLUE)>>> 设置 Clash 配置...$(NC)"
-	@if [ ! -f clash/config.yaml ]; then \
-		if [ -f clash/config-subscription.yaml.example ]; then \
-			cp clash/config-subscription.yaml.example clash/config.yaml; \
-			echo "$(YELLOW)⚠ 请编辑 clash/config.yaml 添加您的订阅链接$(NC)"; \
-		else \
-			echo "$(RED)✗ 找不到配置模板$(NC)"; \
-			exit 1; \
-		fi \
+generate-config: ## 从模板生成配置文件
+	@echo "$(BLUE)>>> 从模板生成配置文件...$(NC)"
+	@# 加载 .env 文件并生成 Clash 配置
+	@if [ -f clash/config-subscription.yaml.template ]; then \
+		set -a && . ./.env && set +a && \
+		envsubst < clash/config-subscription.yaml.template > clash/config-subscription.yaml && \
+		echo "$(GREEN)✓ Clash 订阅配置已生成$(NC)"; \
 	else \
-		echo "$(GREEN)✓ Clash 配置已存在$(NC)"; \
+		echo "$(RED)✗ 找不到 Clash 配置模板$(NC)"; \
 	fi
+	@# 生成 CLIProxy 配置
+	@if [ -f cliproxy/config.yaml.template ]; then \
+		set -a && . ./.env && set +a && \
+		envsubst < cliproxy/config.yaml.template > cliproxy/config.yaml && \
+		echo "$(GREEN)✓ CLIProxy 配置已生成$(NC)"; \
+	else \
+		echo "$(RED)✗ 找不到 CLIProxy 配置模板$(NC)"; \
+	fi
+	@# 创建符号链接
+	@cd clash && ln -sf config-subscription.yaml config.yaml && \
+	echo "$(GREEN)✓ Clash 配置链接已创建$(NC)"
 
-setup-cliproxy: ## 设置 CLIProxy 配置
-	@echo "$(BLUE)>>> 设置 CLIProxy 配置...$(NC)"
-	@if [ ! -f cliproxy/config.yaml ]; then \
-		echo "$(RED)✗ 找不到 CLIProxy 配置文件$(NC)"; \
-		exit 1; \
-	else \
-		echo "$(GREEN)✓ CLIProxy 配置已存在$(NC)"; \
-	fi
+config: generate-config ## 重新生成配置文件（快捷方式）
+
+setup-clash: ## 设置 Clash 配置（已废弃，使用 generate-config）
+	@echo "$(YELLOW)⚠ 此命令已废弃，请使用 'make generate-config'$(NC)"
+	@$(MAKE) generate-config
+
+setup-cliproxy: ## 设置 CLIProxy 配置（已废弃，使用 generate-config）
+	@echo "$(YELLOW)⚠ 此命令已废弃，请使用 'make generate-config'$(NC)"
+	@$(MAKE) generate-config
 
 # ==================== Docker 部署 ====================
 up: ## 启动所有服务
