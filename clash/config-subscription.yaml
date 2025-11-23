@@ -1,39 +1,78 @@
-# Clash 订阅配置示例
-# 支持 URL 订阅、定时刷新、自动选择美国节点
+# ========================================
+# Clash 订阅配置 - 生产环境
+# ========================================
+# 功能特性：
+# - 支持机场订阅 URL 自动导入节点
+# - 自动刷新订阅列表（默认 1 小时）
+# - 智能选择美国节点（Claude/Anthropic 专用）
+# - 健康检查和故障转移
+# - 支持多订阅源负载
+#
+# 使用前准备：
+# 1. 从您的机场服务商获取 Clash 订阅链接
+# 2. 修改下方 proxy-providers 中的 url 字段
+# 3. 如需多个订阅源，取消注释 backup-subscription
+# 4. 复制本文件为 config.yaml: cp config-subscription.yaml config.yaml
+# 5. 启动服务: make start
+# ========================================
 
 # HTTP(S) 和 SOCKS5 代理端口
 port: 7890
 socks-port: 7891
 
-# 允许局域网连接
+# 允许局域网连接（容器内部服务访问必须开启）
 allow-lan: true
 
-# Clash 运行模式: rule / global / direct
+# Clash 运行模式
+# - rule: 基于规则分流（推荐）
+# - global: 全局代理
+# - direct: 全局直连
 mode: rule
 
-# 日志级别: info / warning / error / debug / silent
+# 日志级别
+# - silent: 静默
+# - error: 仅错误
+# - warning: 警告及以上
+# - info: 信息及以上（推荐）
+# - debug: 调试（排查问题时使用）
 log-level: info
 
-# RESTful API
+# RESTful API 和 Dashboard
+# 访问地址: http://127.0.0.1:9090/ui
+# 可以使用 Clash Dashboard 可视化管理
 external-controller: 0.0.0.0:9090
 
-# 代理节点订阅配置
+# ========================================
+# 订阅配置 - 请修改为您的订阅链接
+# ========================================
 proxy-providers:
-  # 主订阅源
+  # 主订阅源（必填）
+  # 从您的机场获取 Clash 订阅链接后填写到下方 url 字段
   my-subscription:
     type: http
-    url: "https://your-subscription-url.com/link?token=xxxxx"  # 替换为您的订阅链接
-    interval: 3600        # 自动更新间隔（秒），3600 = 1小时
+    # ⚠️ 重要：请替换为您的实际订阅链接
+    # 获取方式：登录机场 → 订阅中心 → 复制 Clash 订阅链接
+    # 示例格式：https://sub.example.com/link/xxxxxxxxxxxx?clash=1
+    url: "https://your-subscription-url.com/link?token=change_this"
+
+    # 自动更新间隔（秒）
+    # 3600 = 1小时，86400 = 1天
+    interval: 3600
+
+    # 本地缓存路径（无需修改）
     path: ./subscriptions/my-subscription.yaml
+
+    # 健康检查配置
     health-check:
       enable: true
-      interval: 300       # 健康检查间隔（秒）
+      interval: 300       # 每 5 分钟检查一次节点健康状态
       url: http://www.gstatic.com/generate_204
 
-  # 可选：第二个订阅源（备用）
+  # 备用订阅源（可选）
+  # 如果您有多个机场订阅，可以添加备用源提高可用性
   # backup-subscription:
   #   type: http
-  #   url: "https://backup-subscription-url.com/link?token=xxxxx"
+  #   url: "https://backup-subscription-url.com/link?token=change_this"
   #   interval: 3600
   #   path: ./subscriptions/backup-subscription.yaml
   #   health-check:
@@ -41,19 +80,25 @@ proxy-providers:
   #     interval: 300
   #     url: http://www.gstatic.com/generate_204
 
-# 代理组配置
+# ========================================
+# 代理组配置 - 智能节点选择策略
+# ========================================
 proxy-groups:
-  # 美国节点 - 自动选择最快的美国节点
+  # 🇺🇸 美国节点 - Claude/Anthropic 推荐
+  # 自动从订阅中筛选美国节点并测速选择最快的
   - name: "🇺🇸 美国节点"
-    type: url-test          # 自动测速选择
+    type: url-test          # 自动测速选择最快节点
     use:
-      - my-subscription     # 使用订阅源
+      - my-subscription     # 使用主订阅源
+      # - backup-subscription  # 如有备用订阅，取消注释
+    # 节点过滤规则（正则表达式）
+    # 匹配包含以下关键词的节点：美国、US、United States 等
     filter: "(?i)美国|US|United States|America|Los Angeles|San Francisco|Silicon Valley|New York|Seattle|Chicago"
     url: 'http://www.gstatic.com/generate_204'
-    interval: 300           # 测速间隔（秒）
-    tolerance: 50           # 容差值（ms），延迟差异小于此值不切换
+    interval: 300           # 每 5 分钟测速一次
+    tolerance: 50           # 容差 50ms，延迟差异小于此值不切换节点
 
-  # 香港节点 - 备用
+  # 🇭🇰 香港节点 - 备用
   - name: "🇭🇰 香港节点"
     type: url-test
     use:
@@ -61,8 +106,9 @@ proxy-groups:
     filter: "(?i)香港|HK|Hong Kong|HongKong"
     url: 'http://www.gstatic.com/generate_204'
     interval: 300
+    tolerance: 50
 
-  # 日本节点 - 备用
+  # 🇯🇵 日本节点 - 备用
   - name: "🇯🇵 日本节点"
     type: url-test
     use:
@@ -70,8 +116,9 @@ proxy-groups:
     filter: "(?i)日本|JP|Japan|Tokyo|Osaka"
     url: 'http://www.gstatic.com/generate_204'
     interval: 300
+    tolerance: 50
 
-  # 手动选择
+  # 🚀 手动选择 - 可自由切换任意节点
   - name: "🚀 手动选择"
     type: select
     proxies:
@@ -82,24 +129,30 @@ proxy-groups:
     use:
       - my-subscription     # 也可以手动选择订阅中的任意节点
 
-  # 自动选择 - 从所有节点中选最快的
+  # ⚡ 自动选择 - 从所有节点中选最快的
   - name: "⚡ 自动选择"
     type: url-test
     use:
       - my-subscription
     url: 'http://www.gstatic.com/generate_204'
     interval: 300
+    tolerance: 50
 
-  # Claude / Anthropic 专用 - 使用美国节点
+  # ========================================
+  # AI 服务专用代理组
+  # ========================================
+
+  # 🤖 Claude / Anthropic 专用
+  # ⚠️ 重要：Claude 服务强烈建议使用美国节点
   - name: "🤖 Claude"
     type: select
     proxies:
-      - "🇺🇸 美国节点"      # 优先使用美国节点
+      - "🇺🇸 美国节点"      # 首选：美国节点（推荐）
       - "⚡ 自动选择"        # 备选：自动选择
       - "🚀 手动选择"        # 备选：手动选择
       - "🇭🇰 香港节点"      # 备选：香港节点
 
-  # OpenAI 专用
+  # 🌐 OpenAI 专用
   - name: "🌐 OpenAI"
     type: select
     proxies:
@@ -107,7 +160,7 @@ proxy-groups:
       - "⚡ 自动选择"
       - "🇭🇰 香港节点"
 
-  # 国际流量
+  # 🌍 国际流量 - 其他国际服务
   - name: "🌍 国际流量"
     type: select
     proxies:
@@ -116,7 +169,7 @@ proxy-groups:
       - "🚀 手动选择"
       - DIRECT
 
-  # 故障转移 - 自动切换可用节点
+  # ♻️ 故障转移 - 节点不可用时自动切换
   - name: "♻️ 故障转移"
     type: fallback
     use:
@@ -124,41 +177,74 @@ proxy-groups:
     url: 'http://www.gstatic.com/generate_204'
     interval: 300
 
-# 规则配置
+# ========================================
+# 路由规则配置 - 智能分流
+# ========================================
+# 规则匹配顺序：从上到下依次匹配，命中即停止
+# 规则格式说明：
+# - DOMAIN-SUFFIX: 域名后缀匹配（如 .com）
+# - DOMAIN-KEYWORD: 域名关键词匹配
+# - IP-CIDR: IP 地址段匹配
+# - GEOIP: 地理位置匹配
+# - MATCH: 兜底规则，匹配所有未命中的流量
+# ========================================
 rules:
-  # Claude / Anthropic 相关域名 - 使用美国节点
+  # ========================================
+  # AI 服务路由规则
+  # ========================================
+
+  # Claude / Anthropic - 使用美国节点
   - DOMAIN-SUFFIX,anthropic.com,🤖 Claude
   - DOMAIN-SUFFIX,claude.ai,🤖 Claude
   - DOMAIN-KEYWORD,anthropic,🤖 Claude
   - DOMAIN-KEYWORD,claude,🤖 Claude
 
-  # OpenAI 相关域名
+  # OpenAI - ChatGPT / GPT API
   - DOMAIN-SUFFIX,openai.com,🌐 OpenAI
   - DOMAIN-SUFFIX,ai.com,🌐 OpenAI
   - DOMAIN-KEYWORD,openai,🌐 OpenAI
+  - DOMAIN-KEYWORD,chatgpt,🌐 OpenAI
 
-  # Google Gemini
+  # Google Gemini / AI Studio
   - DOMAIN-SUFFIX,googleapis.com,🌍 国际流量
   - DOMAIN-SUFFIX,generativelanguage.googleapis.com,🌍 国际流量
   - DOMAIN-SUFFIX,google.com,🌍 国际流量
+  - DOMAIN-SUFFIX,googleusercontent.com,🌍 国际流量
 
-  # 其他 AI 服务
+  # 其他主流 AI 服务
   - DOMAIN-SUFFIX,cohere.ai,🌍 国际流量
   - DOMAIN-SUFFIX,mistral.ai,🌍 国际流量
+  - DOMAIN-SUFFIX,huggingface.co,🌍 国际流量
+  - DOMAIN-SUFFIX,replicate.com,🌍 国际流量
+
+  # ========================================
+  # 开发工具和平台
+  # ========================================
 
   # GitHub
   - DOMAIN-SUFFIX,github.com,🌍 国际流量
   - DOMAIN-SUFFIX,githubusercontent.com,🌍 国际流量
+  - DOMAIN-SUFFIX,github.io,🌍 国际流量
 
-  # 局域网地址 - 直连
+  # NPM / Yarn
+  - DOMAIN-SUFFIX,npmjs.org,🌍 国际流量
+  - DOMAIN-SUFFIX,yarnpkg.com,🌍 国际流量
+
+  # ========================================
+  # 局域网和本地流量 - 直连
+  # ========================================
   - DOMAIN-SUFFIX,local,DIRECT
   - IP-CIDR,127.0.0.0/8,DIRECT
   - IP-CIDR,172.16.0.0/12,DIRECT
   - IP-CIDR,192.168.0.0/16,DIRECT
   - IP-CIDR,10.0.0.0/8,DIRECT
 
+  # ========================================
   # 中国大陆地址 - 直连
+  # ========================================
   - GEOIP,CN,DIRECT
 
-  # 其他流量 - 使用国际流量策略
+  # ========================================
+  # 兜底规则 - 其他所有流量
+  # ========================================
   - MATCH,🌍 国际流量

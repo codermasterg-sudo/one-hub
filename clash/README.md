@@ -1,57 +1,55 @@
 # Clash 配置目录
 
-## 文件说明
+## 📁 文件说明
 
-- `config.yaml` - Clash 主配置文件（需要手动创建）
-- `config.yaml.example` - 手动配置节点的示例
-- `config-subscription.yaml.example` - **订阅模式配置示例（推荐）**
+- `config.yaml` - Clash 主配置文件（符号链接，指向 config-subscription.yaml）
+- `config-subscription.yaml` - **订阅模式配置（默认，推荐）**
+- `config-manual.yaml` - 手动配置节点模式
 - `subscriptions/` - 订阅文件缓存目录（自动生成）
 - `ui/` - Clash Dashboard UI 文件（可选）
 
 ---
 
-## 🚀 快速开始（订阅模式）
+## 🚀 快速开始
 
-### 方式一：使用订阅链接（推荐）
+### 默认配置（订阅模式）
 
-适用于已有机场订阅的用户。
+项目已配置为**订阅模式**，`config.yaml` 链接到 `config-subscription.yaml`。
 
-#### 1. 创建配置文件
+#### 1. 修改订阅链接
 
-```bash
-# 复制订阅配置模板
-cp clash/config-subscription.yaml.example clash/config.yaml
-```
-
-#### 2. 修改订阅链接
-
-编辑 `clash/config.yaml`，修改第 18 行：
+编辑 `clash/config-subscription.yaml`，修改订阅 URL：
 
 ```yaml
 proxy-providers:
   my-subscription:
     type: http
-    url: "https://your-subscription-url.com/link?token=xxxxx"  # 替换为您的订阅链接
+    url: "https://your-subscription-url.com/link?token=change_this"  # ⚠️ 替换为您的订阅链接
     interval: 3600  # 每小时自动更新
+```
+
+或者使用环境变量（推荐）：
+
+```bash
+# 在 .env 文件中配置
+CLASH_SUBSCRIPTION_URL=https://your-subscription-url.com/link?token=xxxxx
 ```
 
 **获取订阅链接**：
 - 从您的机场/代理服务商获取 Clash 订阅链接
 - 通常格式为：`https://xxx.com/api/v1/client/subscribe?token=xxxxx`
 
-#### 3. 创建订阅缓存目录
+#### 2. 启动服务
 
 ```bash
-mkdir -p clash/subscriptions
+# 使用 Makefile（推荐）
+make start
+
+# 或使用 docker-compose
+docker-compose up -d
 ```
 
-#### 4. 启动 Clash
-
-```bash
-docker-compose up -d clash
-```
-
-#### 5. 验证
+#### 3. 验证
 
 ```bash
 # 查看日志（应该显示订阅加载成功）
@@ -60,8 +58,39 @@ docker logs clash
 # 测试代理
 curl -x http://localhost:7890 https://www.google.com
 
-# 访问 Dashboard（如果配置了）
+# 访问 Dashboard
 open http://localhost:9090/ui
+```
+
+### 切换到手动模式
+
+如果您需要手动配置节点：
+
+```bash
+# 1. 删除旧的符号链接
+rm clash/config.yaml
+
+# 2. 创建新的符号链接指向手动配置
+ln -s config-manual.yaml clash/config.yaml
+
+# 3. 编辑手动配置文件
+vim clash/config-manual.yaml
+
+# 4. 重启 Clash
+make clash-restart
+```
+
+### 切换回订阅模式
+
+```bash
+# 1. 删除旧的符号链接
+rm clash/config.yaml
+
+# 2. 创建新的符号链接指向订阅配置
+ln -s config-subscription.yaml clash/config.yaml
+
+# 3. 重启 Clash
+make clash-restart
 ```
 
 ---

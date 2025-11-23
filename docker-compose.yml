@@ -9,19 +9,22 @@ services:
       - "3000:3000"
     volumes:
       - ./data:/data
+    env_file:
+      - .env
     environment:
-      - SQL_DSN=oneapi:123456@tcp(db:3306)/one-api # 修改此行，或注释掉以使用 SQLite 作为数据库
-      - REDIS_CONN_STRING=redis://redis # redis
-      - SESSION_SECRET=random_string # 修改为随机字符串
-      - USER_TOKEN_SECRET=random_string # 修改为随机字符串,32位以上
-      - TZ=Asia/Shanghai
-      # - HASHIDS_SALT=random_string # 可空，建议设置，字符串元素不能重复
-      # - NODE_TYPE=slave  # 多机部署时从节点取消注释该行
-      # - SYNC_FREQUENCY=60  # 需要定期从数据库加载数据时取消注释该行
-      # - FRONTEND_BASE_URL=https://openai.justsong.cn  # 多机部署时从节点取消注释该行
-      # 如果需要通过clash代理访问外部API，可以配置以下环境变量
-      # - HTTP_PROXY=http://clash:7890
-      # - HTTPS_PROXY=http://clash:7890
+      - SQL_DSN=${SQL_DSN}
+      - REDIS_CONN_STRING=${REDIS_CONN_STRING}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - USER_TOKEN_SECRET=${USER_TOKEN_SECRET}
+      - TZ=${TZ}
+      - HASHIDS_SALT=${HASHIDS_SALT}
+      # 多机部署配置（可选）
+      # - NODE_TYPE=${NODE_TYPE}
+      # - SYNC_FREQUENCY=${SYNC_FREQUENCY}
+      # - FRONTEND_BASE_URL=${FRONTEND_BASE_URL}
+      # 代理配置（如需通过 Clash 访问外部 API，取消注释）
+      # - HTTP_PROXY=${HTTP_PROXY}
+      # - HTTPS_PROXY=${HTTPS_PROXY}
     depends_on:
       - redis
       - db
@@ -53,15 +56,17 @@ services:
     restart: always
     container_name: mysql
     volumes:
-      - ./data/mysql:/var/lib/mysql # 挂载目录，持久化存储
+      - ./data/mysql:/var/lib/mysql
     ports:
       - "3306:3306"
+    env_file:
+      - .env
     environment:
-      TZ: Asia/Shanghai # 设置时区
-      MYSQL_ROOT_PASSWORD: "OneAPI@justsong" # 设置 root 用户的密码
-      MYSQL_USER: oneapi # 创建专用用户
-      MYSQL_PASSWORD: "123456" # 设置专用用户密码
-      MYSQL_DATABASE: one-api # 自动创建数据库
+      - TZ=${TZ}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
     networks:
       - one-hub-network
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
@@ -78,8 +83,10 @@ services:
       - ./clash/config.yaml:/root/.config/clash/config.yaml  # 主配置文件
       - ./clash/subscriptions:/root/.config/clash/subscriptions  # 订阅缓存目录
       - ./clash/ui:/root/.config/clash/ui  # Dashboard UI（可选）
+    env_file:
+      - .env
     environment:
-      - TZ=Asia/Shanghai
+      - TZ=${TZ}
     networks:
       - one-hub-network
     healthcheck:
@@ -95,12 +102,14 @@ services:
     container_name: cliproxy
     restart: always
     ports:
-      - "8080:8080"  # API 端口
+      - "${CLIPROXY_PORT:-8080}:8080"  # API 端口
     volumes:
       - ./cliproxy/auth:/app/auth              # 认证凭证目录
       - ./cliproxy/config.yaml:/app/config.yaml  # 配置文件
+    env_file:
+      - .env
     environment:
-      - TZ=Asia/Shanghai
+      - TZ=${TZ}
       # 通过 Clash 代理访问 Claude API
       - HTTP_PROXY=http://clash:7890
       - HTTPS_PROXY=http://clash:7890

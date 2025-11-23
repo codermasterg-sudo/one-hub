@@ -1,98 +1,223 @@
-# CLIProxyAPI 配置文件
-# 用于 One-Hub 集成的轻量级多账号 Claude 代理
+# ========================================
+# CLIProxyAPI 配置文件 - 生产环境
+# ========================================
+# 功能说明：
+# - 将 Claude Code CLI 账号转换为 API 接口
+# - 支持多账号负载均衡（轮询/加权/最少连接）
+# - 兼容 OpenAI 和 Anthropic API 格式
+# - 自动 OAuth2 令牌刷新和管理
+# - 流式响应、函数调用、多模态支持
+#
+# 使用前准备：
+# 1. 确保已安装 Claude CLI 并通过 OAuth2 认证
+# 2. 登录账号: docker exec -it cliproxy cliproxy auth login --provider claude
+# 3. 多账号: 重复执行登录命令，使用 --account 参数区分
+# 4. 配置 One-Hub 渠道，使用此服务的 API 地址
+# ========================================
 
-# 服务端口
+# 服务监听端口
+# 默认: 8080
+# One-Hub 配置时使用: http://cliproxy:8080/v1
 port: 8080
 
-# 认证目录（存储 OAuth 凭证）
+# 认证凭证存储目录
+# 存储 OAuth2 令牌和会话数据
+# Docker 环境: /app/auth (已在 docker-compose.yml 中挂载)
 auth_dir: /app/auth
 
-# 启用的提供商
+# ========================================
+# AI 提供商配置
+# ========================================
 providers:
-  # Claude Code - 支持多账号负载均衡
+  # ----------------
+  # Claude Code 配置（主要）
+  # ----------------
   - name: claude
     enabled: true
     type: claude_code
+
+    # 负载均衡配置
     load_balancing:
+      # 是否启用多账号负载均衡
       enabled: true
-      strategy: round_robin  # 轮询策略：round_robin, weighted, least_connections
 
-  # 可选：同时支持其他 AI CLI
-  # 如需启用，取消下方注释
+      # 负载均衡策略:
+      # - round_robin: 轮询（推荐）- 平均分配请求到所有账号
+      # - weighted: 加权 - 根据账号权重分配请求
+      # - least_connections: 最少连接 - 选择当前连接数最少的账号
+      # - random: 随机 - 随机选择账号
+      strategy: round_robin
 
+      # 加权策略配置（仅当 strategy=weighted 时生效）
+      # weights:
+      #   account1: 3    # 账号 1 的权重为 3
+      #   account2: 2    # 账号 2 的权重为 2
+      #   account3: 1    # 账号 3 的权重为 1
+
+    # 账号健康检查（可选）
+    # health_check:
+    #   enabled: true
+    #   interval: 60    # 检查间隔（秒）
+    #   timeout: 10     # 超时时间（秒）
+
+  # ----------------
+  # 其他提供商（可选）
+  # ----------------
+  # 如需支持其他 AI CLI，取消下方注释
+
+  # Google Gemini CLI
   # - name: gemini
-  #   enabled: true
+  #   enabled: false
   #   type: gemini_cli
   #   load_balancing:
   #     enabled: true
+  #     strategy: round_robin
 
+  # OpenAI Codex
   # - name: codex
-  #   enabled: true
+  #   enabled: false
   #   type: openai_codex
 
-# API 格式兼容性
+# ========================================
+# API 兼容性配置
+# ========================================
 api_compatibility:
-  openai: true          # 支持 OpenAI 格式 API
-  anthropic: true       # 支持 Anthropic 原生格式
+  # OpenAI 格式 API 支持（推荐开启）
+  # 路径: /v1/chat/completions
+  openai: true
 
+  # Anthropic 原生格式支持
+  # 路径: /v1/messages
+  anthropic: true
+
+# ========================================
 # 日志配置
-log_level: info         # debug, info, warn, error
+# ========================================
+# 日志级别:
+# - debug: 详细调试信息（排查问题时使用）
+# - info: 一般信息（推荐，生产环境）
+# - warn: 警告信息
+# - error: 仅错误信息
+log_level: info
 
-# 流式响应支持
+# 日志格式
+# - json: JSON 格式（便于日志收集）
+# - text: 文本格式（便于阅读）
+log_format: text
+
+# ========================================
+# 功能开关
+# ========================================
+
+# 流式响应支持（SSE）
+# One-Hub 需要流式响应时必须开启
 streaming: true
 
-# 函数调用支持
+# 函数调用 / Tool Use 支持
+# 支持 Claude 的 Tools 功能
 function_calling: true
 
-# 多模态支持（文本+图像）
+# 多模态支持（文本 + 图像）
+# 支持发送图片给 Claude 分析
 multimodal: true
 
+# ========================================
 # 性能配置
+# ========================================
 performance:
-  # 连接池
+  # HTTP 连接池配置
   connection_pool:
+    # 最大连接数
     max_connections: 100
+
+    # 空闲连接超时（秒）
     idle_timeout: 300
+
+    # 最大空闲连接数
     max_idle_connections: 10
 
-  # 请求超时（秒）
+  # 请求超时时间（秒）
+  # Claude API 可能需要较长时间响应，建议 300 秒以上
   request_timeout: 300
 
-  # 并发控制
+  # 最大并发请求数
+  # 根据服务器性能和账号数量调整
   max_concurrent_requests: 50
 
-# 认证配置
+# ========================================
+# OAuth2 认证配置
+# ========================================
 auth:
-  # 自动刷新令牌
+  # 自动刷新令牌（强烈推荐开启）
+  # 防止令牌过期导致服务中断
   auto_refresh: true
 
-  # 刷新间隔（秒）
+  # 令牌刷新检查间隔（秒）
+  # 默认 1 小时检查一次
   refresh_interval: 3600
 
-  # 提前刷新时间（秒），在令牌过期前多久刷新
+  # 提前刷新时间（秒）
+  # 在令牌过期前 10 分钟刷新
   refresh_before_expiry: 600
 
-  # 失败重试
+  # 失败重试机制
   retry_on_failure: true
+
+  # 重试次数
   retry_attempts: 3
 
-# 监控（可选）
+  # 重试间隔（秒）
+  # retry_delay: 5
+
+# ========================================
+# 监控和指标（可选）
+# ========================================
 monitoring:
+  # 是否启用监控
+  # 生产环境建议开启，用于故障排查
   enabled: false
 
-  # Prometheus metrics
+  # Prometheus 指标导出
   prometheus:
     enabled: false
-    port: 9090
+    # Prometheus 指标端口
+    port: 9091
+    # 指标路径
+    path: /metrics
 
-  # 指标类型
+  # 收集的指标类型
   metrics:
-    - request_count
-    - response_time
-    - account_usage
-    - error_rate
+    - request_count      # 请求总数
+    - response_time      # 响应时间
+    - account_usage      # 账号使用情况
+    - error_rate         # 错误率
+    - token_usage        # Token 使用量
 
+# ========================================
 # 缓存配置（可选）
+# ========================================
+# 注意：Claude 响应通常是动态的，不建议启用缓存
+# 如需缓存，仅建议缓存相同的系统提示词结果
 cache:
+  # 是否启用响应缓存
   enabled: false
-  ttl: 3600  # 秒
+
+  # 缓存过期时间（秒）
+  ttl: 3600
+
+  # 缓存存储类型
+  # - memory: 内存缓存（默认）
+  # - redis: Redis 缓存
+  # type: memory
+
+# ========================================
+# 速率限制（可选）
+# ========================================
+# 防止单个客户端过度使用
+rate_limit:
+  # 是否启用速率限制
+  enabled: false
+
+  # 限制策略
+  # requests_per_minute: 60    # 每分钟最大请求数
+  # requests_per_hour: 1000    # 每小时最大请求数
