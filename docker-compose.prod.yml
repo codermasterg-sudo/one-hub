@@ -1,6 +1,6 @@
 services:
   one-hub:
-    image: martialbe/one-api:latest
+    image: ${IMAGE_NAME:-one-hub}:${IMAGE_TAG:-latest}
     container_name: one-hub
     restart: always
     ports:
@@ -136,6 +136,53 @@ services:
         max-size: "5m"
         max-file: "3"
 
+  # Clash 代理服务
+  clash:
+    image: dreamacro/clash:latest
+    container_name: one-hub-clash
+    restart: always
+    ports:
+      - "${CLASH_HTTP_PORT:-7890}:7890"
+      - "${CLASH_SOCKS_PORT:-7891}:7891"
+      - "${CLASH_API_PORT:-9090}:9090"
+    volumes:
+      - ./data/clash:/root/.config/clash
+    environment:
+      - TZ=${TZ:-Asia/Shanghai}
+      - CLASH_CONFIG_URL=${CLASH_CONFIG_URL:-}
+      - UPDATE_INTERVAL=${CLASH_UPDATE_INTERVAL:-300}
+      - NODE_FILTER=${CLASH_NODE_FILTER:-美国}
+      - PROXY_GROUP=${CLASH_PROXY_GROUP:-Proxy}
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        CONFIG=/root/.config/clash/config.yaml
+        API=http://127.0.0.1:9090
+        mkdir -p /root/.config/clash
+        # 下载并设置默认节点
+        load_config() {
+          wget -q -U "ClashForWindows/0.20.39" -O $$CONFIG.tmp "$$CLASH_CONFIG_URL" || return 1
+          # 允许局域网访问
+          sed -i "s/allow-lan: false/allow-lan: true/" $$CONFIG.tmp
+          # 获取第一个匹配的美国节点名称
+          NODE=$$(grep -E "^\s+- '.*$$NODE_FILTER" $$CONFIG.tmp | head -1 | sed "s/.*- '\\(.*\\)'/\\1/")
+          if [ -n "$$NODE" ]; then
+            # 在Proxy组后插入默认选择
+            sed -i "/name: $$PROXY_GROUP/a\\    now: '$$NODE'" $$CONFIG.tmp
+            echo "[`date`] 已设置默认节点: $$NODE"
+          fi
+          mv $$CONFIG.tmp $$CONFIG
+          echo "[`date`] 配置加载成功"
+        }
+        # 首次加载
+        [ -n "$$CLASH_CONFIG_URL" ] && load_config
+        # 定时更新
+        (while true; do sleep $$UPDATE_INTERVAL; [ -n "$$CLASH_CONFIG_URL" ] && load_config; done) &
+        /clash
+    networks:
+      - one-hub-network
+
 networks:
   one-hub-network:
     driver: bridge
@@ -144,3 +191,4 @@ volumes:
   mysql-data:
   redis-data:
   app-data:
+

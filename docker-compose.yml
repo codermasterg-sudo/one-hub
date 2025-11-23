@@ -12,6 +12,7 @@ services:
     volumes:
       - ./data:/data
 #      - ./config.dev.yaml:/app/config.yaml:ro
+      - ./web/build:/app/build:ro  # 前端热更新：修改前端后执行 npm run build 即可
     environment:
       - SQL_DSN=oneapi:9AV28f1G+RZqZhbbKLXMffdbgSi+0s05yunXJOfjn9k=@tcp(db:3306)/one-api # 修改此行，或注释掉以使用 SQLite 作为数据库
       - REDIS_CONN_STRING=redis://redis # redis

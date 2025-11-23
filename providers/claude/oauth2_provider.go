@@ -1,8 +1,12 @@
 package claude
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 
+	"one-api/common"
+	"one-api/common/config"
 	"one-api/common/requester"
 	"one-api/model"
 	"one-api/providers/base"
@@ -27,6 +31,14 @@ func (f ClaudeOAuth2ProviderFactory) Create(channel *model.Channel) base.Provide
 	if err := provider.InitOAuth2FromChannel("claude", channel); err != nil {
 		// 如果初始化失败，记录错误但不中断创建过程
 		// 实际请求时会返回错误
+		common.SysError(fmt.Sprintf("Channel %d OAuth2 initialization failed: %v, proxy=%v, key_length=%d",
+			channel.Id, err, channel.Proxy, len(channel.Key)))
+	} else {
+		proxyInfo := "no proxy"
+		if channel.Proxy != nil && *channel.Proxy != "" {
+			proxyInfo = *channel.Proxy
+		}
+		common.SysLog(fmt.Sprintf("Channel %d OAuth2 initialized successfully with proxy: %s", channel.Id, proxyInfo))
 	}
 
 	return provider
@@ -44,28 +56,28 @@ func (p *ClaudeOAuth2Provider) GetRequestHeaders() (headers map[string]string) {
 	p.CommonRequestHeaders(headers)
 
 	// 获取 OAuth2 认证头
-	if p.IsOAuth2Enabled() {
-		oauth2Headers, err := p.GetOAuth2Headers(p.Context)
-		if err != nil {
-			// 错误处理：如果获取 OAuth2 头失败，记录错误
-			// 实际请求会因为缺少认证而失败
-			return headers
-		}
-
-		// 合并 OAuth2 头
-		for k, v := range oauth2Headers {
-			headers[k] = v
-		}
-	}
+	p.AddOAuth2Headers(headers)
 
 	// 添加 Anthropic 必需的头
-	anthropicVersion := p.Context.Request.Header.Get("anthropic-version")
-	if anthropicVersion == "" {
-		anthropicVersion = "2023-06-01"
+	anthropicVersion := "2023-06-01"
+	if p.Context != nil && p.Context.Request != nil {
+		if ver := p.Context.Request.Header.Get("anthropic-version"); ver != "" {
+			anthropicVersion = ver
+		}
 	}
 	headers["anthropic-version"] = anthropicVersion
 
 	return headers
+}
+
+// GetFullRequestURL 获取完整请求URL
+func (p *ClaudeOAuth2Provider) GetFullRequestURL(requestURL string) string {
+	baseURL := strings.TrimSuffix(p.GetBaseURL(), "/")
+	if strings.HasPrefix(baseURL, "https://gateway.ai.cloudflare.com") {
+		requestURL = strings.TrimPrefix(requestURL, "/v1")
+	}
+
+	return fmt.Sprintf("%s%s", baseURL, requestURL)
 }
 
 // 以下方法复用 ClaudeProvider 的实现
@@ -82,7 +94,6 @@ func (p *ClaudeOAuth2Provider) CreateChatCompletion(request *types.ChatCompletio
 	if errWithCode != nil {
 		return nil, errWithCode
 	}
-	defer req.Body.Close()
 
 	claudeResponse := &ClaudeResponse{}
 	_, errWithCode = p.Requester.SendRequest(req, claudeResponse, false)
@@ -104,7 +115,6 @@ func (p *ClaudeOAuth2Provider) CreateChatCompletionStream(request *types.ChatCom
 	if errWithCode != nil {
 		return nil, errWithCode
 	}
-	defer req.Body.Close()
 
 	resp, errWithCode := p.Requester.SendRequestRaw(req)
 	if errWithCode != nil {
@@ -121,30 +131,36 @@ func (p *ClaudeOAuth2Provider) CreateChatCompletionStream(request *types.ChatCom
 }
 
 // getChatRequest 获取聊天请求（内部方法）
-func (p *ClaudeOAuth2Provider) getChatRequest(claudeRequest *ClaudeRequest) (*types.HttpRequest, *types.OpenAIErrorWithStatusCode) {
-	url, errWithCode := p.GetSupportedAPIUri(types.RelayModeChatCompletions)
+func (p *ClaudeOAuth2Provider) getChatRequest(claudeRequest *ClaudeRequest) (*http.Request, *types.OpenAIErrorWithStatusCode) {
+	url, errWithCode := p.GetSupportedAPIUri(config.RelayModeChatCompletions)
 	if errWithCode != nil {
 		return nil, errWithCode
 	}
 
+	// 获取请求地址
+	fullRequestURL := p.GetFullRequestURL(url)
+	if fullRequestURL == "" {
+		return nil, common.ErrorWrapperLocal(nil, "invalid_claude_config", http.StatusInternalServerError)
+	}
+
 	// 获取请求头（已包含 OAuth2 认证）
 	headers := p.GetRequestHeaders()
-
-	req := &types.HttpRequest{
-		Url:     url,
-		Method:  "POST",
-		Headers: headers,
+	if claudeRequest.Stream {
+		headers["Accept"] = "text/event-stream"
 	}
 
-	if p.Channel.Plugin != nil {
-		newModel, err := getCustomModel(p.Channel.Plugin, claudeRequest.Model)
-		if err == nil {
-			claudeRequest.Model = newModel
-		}
+	if strings.HasPrefix(claudeRequest.Model, "claude-3-5-sonnet") {
+		headers["anthropic-beta"] = "max-tokens-3-5-sonnet-2024-07-15"
 	}
 
-	if err := req.SetBody(claudeRequest); err != nil {
-		return nil, types.OpenAIErrorWrapper(err, "marshal_request_body_failed", http.StatusInternalServerError)
+	if strings.HasPrefix(claudeRequest.Model, "claude-3-7-sonnet") {
+		headers["anthropic-beta"] = "output-128k-2025-02-19"
+	}
+
+	// 创建请求
+	req, err := p.Requester.NewRequest(http.MethodPost, fullRequestURL, p.Requester.WithBody(claudeRequest), p.Requester.WithHeader(headers))
+	if err != nil {
+		return nil, common.ErrorWrapperLocal(err, "new_request_failed", http.StatusInternalServerError)
 	}
 
 	return req, nil

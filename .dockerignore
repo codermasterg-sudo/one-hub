@@ -1,0 +1,25 @@
+# 前端构建产物
+web/build/
+web/dist/
+web/node_modules/
+
+# Go 构建产物
+one-api
+*.exe
+
+# 数据目录
+data/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Git
+.git/
+.gitignore
+
+# 其他
+*.md
+*.log
+.env*

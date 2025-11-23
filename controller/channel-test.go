@@ -71,6 +71,24 @@ func testChannel(channel *model.Channel, testModel string) (openaiErr *types.Ope
 		return nil, errors.New("channel not implemented")
 	}
 
+	// 检查 OAuth2 Provider 是否正确初始化
+	if oauth2Provider, ok := provider.(interface{ IsOAuth2Enabled() bool }); ok {
+		if oauth2Provider.IsOAuth2Enabled() {
+			// 尝试获取请求头，检查 OAuth2 是否正常工作
+			headers := provider.GetRequestHeaders()
+			hasAuth := false
+			for k := range headers {
+				if k == "Authorization" || k == "x-api-key" {
+					hasAuth = true
+					break
+				}
+			}
+			if !hasAuth {
+				return nil, errors.New("OAuth2 认证未正确配置，请检查 refresh_token 和网络连接")
+			}
+		}
+	}
+
 	newModelName, err := provider.ModelMappingHandler(testModel)
 	if err != nil {
 		return nil, err

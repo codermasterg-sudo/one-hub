@@ -112,3 +112,32 @@ func (m *OAuth2ProviderMixin) RefreshOAuth2Token(ctx context.Context) error {
 	_, err := m.oauth2Manager.GetAccessToken(ctx)
 	return err
 }
+
+// AddOAuth2Headers 将 OAuth2 认证头添加到现有 headers 中（通用方法）
+// 这是一个便捷方法，会自动处理 Context 为 nil 的情况
+func (b *BaseProvider) AddOAuth2Headers(headers map[string]string) {
+	if oauth2Provider, ok := interface{}(b).(interface {
+		IsOAuth2Enabled() bool
+		GetOAuth2Headers(context.Context) (map[string]string, error)
+	}); ok && oauth2Provider.IsOAuth2Enabled() {
+		// 使用 context.Background() 作为 fallback，OAuth2 token 刷新不依赖请求上下文
+		var ctx context.Context
+		if b.Context != nil {
+			ctx = b.Context
+		} else {
+			ctx = context.Background()
+		}
+
+		oauth2Headers, err := oauth2Provider.GetOAuth2Headers(ctx)
+		if err != nil {
+			// OAuth2 认证失败时静默返回，让实际请求失败并返回错误
+			// 错误会在具体的 API 调用中体现
+			return
+		}
+
+		// 合并 OAuth2 头
+		for k, v := range oauth2Headers {
+			headers[k] = v
+		}
+	}
+}

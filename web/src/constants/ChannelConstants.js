@@ -271,6 +271,13 @@ export const CHANNEL_OPTIONS = {
     color: 'orange',
     url: 'https://x.ai'
   },
+  57: {
+    key: 57,
+    text: 'Claude OAuth2',
+    value: 57,
+    color: 'info',
+    url: 'https://console.anthropic.com/'
+  },
   8: {
     key: 8,
     text: '自定义渠道',
