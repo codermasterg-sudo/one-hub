@@ -396,8 +396,8 @@ test-full: ## 完整测试流程
 # ==================== 打包部署 ====================
 package: ## 打包生产环境部署文件
 	@echo "$(BLUE)>>> 打包生产环境部署文件...$(NC)"
-	@if [ ! -f .env ]; then \
-		echo "$(RED)✗ .env 文件不存在，请先创建$(NC)"; \
+	@if [ ! -f .env.example ]; then \
+		echo "$(RED)✗ .env.example 文件不存在，请先创建$(NC)"; \
 		exit 1; \
 	fi; \
 	timestamp=$$(date +%Y%m%d_%H%M%S); \
@@ -413,7 +413,7 @@ package: ## 打包生产环境部署文件
 	cp Dockerfile $$temp_dir/; \
 	cp Makefile $$temp_dir/; \
 	cp config.example.yaml $$temp_dir/; \
-	cp .env $$temp_dir/; \
+	cp .env.example $$temp_dir/; \
 	cp README.md $$temp_dir/ 2>/dev/null || true; \
 	\
 	echo "$(YELLOW)>>> 复制配置目录...$(NC)"; \
