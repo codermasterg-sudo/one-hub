@@ -6,7 +6,7 @@ services:
     container_name: one-hub
     restart: always
     ports:
-      - "8001:3000"
+      - "8001:8001"  # Web 管理端口
     volumes:
       - ./data:/data
     env_file:
@@ -95,33 +95,15 @@ services:
       timeout: 10s
       retries: 3
 
-  # Clash 订阅自动更新服务
-  # 每小时自动更新订阅文件，无需手动操作
-  clash-subscription-updater:
-    build:
-      context: ./clash
-      dockerfile: Dockerfile.subscription-updater
-    container_name: clash-subscription-updater
-    restart: always
-    volumes:
-      - ./clash:/clash-config  # 挂载 clash 配置目录
-    env_file:
-      - .env
-    environment:
-      - TZ=${TZ}
-    networks:
-      - one-hub-network
-    depends_on:
-      - clash
-
   # CLIProxyAPI - 轻量级多账号 Claude 代理（推荐）
   # 支持多账号负载均衡，OpenAI/Anthropic 兼容格式
   cliproxy:
     image: eceasy/cli-proxy-api:latest
     container_name: cliproxy
     restart: always
-#    ports:
-#      - "${CLIPROXY_PORT:-8080}:8080"  # API 端口
+    ports:
+      - "54545:54545"  # OAuth 回调端口（用于 Claude 账号认证）
+#      - "${CLIPROXY_PORT:-8080}:8080"  # API 端口（通过 Nginx /cliproxy/ 访问）
     volumes:
       - ./cliproxy/auth:/root/.cli-proxy-api              # 认证凭证目录
       - ./cliproxy/config.yaml:/CLIProxyAPI/config.yaml  # 配置文件

@@ -2,23 +2,31 @@
 
 ## 📁 文件说明
 
-- `config.yaml` - Clash 主配置文件（符号链接，指向 config-subscription.yaml）
-- `config-subscription.yaml` - **订阅模式配置（默认，推荐）**
-- `config-manual.yaml` - 手动配置节点模式
-- `subscriptions/` - 订阅文件缓存目录（自动生成）
+- `config.yaml.template` - Clash 配置模板文件（包含占位符）
+- `config.yaml` - Clash 实际配置文件（从模板复制，包含真实订阅地址，已在 .gitignore 中）
+- `subscriptions/` - 订阅文件缓存目录（Clash 自动生成）
 - `ui/` - Clash Dashboard UI 文件（可选）
 
 ---
 
 ## 🚀 快速开始
 
-### 默认配置（订阅模式）
+### 1. 创建配置文件
 
-项目已配置为**订阅模式**，`config.yaml` 链接到 `config-subscription.yaml`。
+从模板创建配置文件：
 
-#### 1. 修改订阅链接
+```bash
+# 复制模板文件
+cp clash/config.yaml.template clash/config.yaml
 
-编辑 `clash/config-subscription.yaml`，修改订阅 URL：
+# 或使用 sed 直接替换占位符（推荐）
+sed 's|https://your-subscription-url.com/link?token=change_this|你的订阅链接|' \
+  clash/config.yaml.template > clash/config.yaml
+```
+
+### 2. 修改订阅链接
+
+编辑 `clash/config.yaml`，修改订阅 URL：
 
 ```yaml
 proxy-providers:
@@ -39,7 +47,7 @@ CLASH_SUBSCRIPTION_URL=https://your-subscription-url.com/link?token=xxxxx
 - 从您的机场/代理服务商获取 Clash 订阅链接
 - 通常格式为：`https://xxx.com/api/v1/client/subscribe?token=xxxxx`
 
-#### 2. 启动服务
+### 3. 启动服务
 
 ```bash
 # 使用 Makefile（推荐）
@@ -49,7 +57,7 @@ make start
 docker-compose up -d
 ```
 
-#### 3. 验证
+### 4. 验证
 
 ```bash
 # 查看日志（应该显示订阅加载成功）
@@ -60,37 +68,6 @@ curl -x http://localhost:7890 https://www.google.com
 
 # 访问 Dashboard
 open http://localhost:9090/ui
-```
-
-### 切换到手动模式
-
-如果您需要手动配置节点：
-
-```bash
-# 1. 删除旧的符号链接
-rm clash/config.yaml
-
-# 2. 创建新的符号链接指向手动配置
-ln -s config-manual.yaml clash/config.yaml
-
-# 3. 编辑手动配置文件
-vim clash/config-manual.yaml
-
-# 4. 重启 Clash
-make clash-restart
-```
-
-### 切换回订阅模式
-
-```bash
-# 1. 删除旧的符号链接
-rm clash/config.yaml
-
-# 2. 创建新的符号链接指向订阅配置
-ln -s config-subscription.yaml clash/config.yaml
-
-# 3. 重启 Clash
-make clash-restart
 ```
 
 ---
@@ -336,28 +313,6 @@ url: 'https://cp.cloudflare.com/generate_204'
 
 ---
 
-## 📝 配置文件对比
-
-### 订阅模式 vs 手动模式
-
-| 特性 | 订阅模式 | 手动模式 |
-|------|----------|----------|
-| 节点来源 | 从 URL 自动获取 | 手动添加 |
-| 更新方式 | 自动定时更新 | 手动修改配置 |
-| 节点数量 | 通常几十到上百个 | 较少 |
-| 适用场景 | 有机场订阅 | 自建节点 |
-| 配置难度 | ⭐ 简单 | ⭐⭐ 中等 |
-
-### 何时使用订阅模式
-
-✅ **推荐使用订阅模式**，如果您：
-- 购买了机场服务
-- 需要大量节点选择
-- 希望节点自动更新
-- 不想手动维护节点配置
-
----
-
 ## 🔒 安全建议
 
 1. **保护订阅链接**
@@ -415,4 +370,4 @@ curl -X PUT http://localhost:9090/proxies/🤖%20Claude -d '{"name":"🇺🇸 �
 
 ---
 
-最后更新: 2025-11-23
+最后更新: 2025-11-25

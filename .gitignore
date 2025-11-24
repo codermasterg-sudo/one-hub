@@ -12,7 +12,6 @@ tmp/
 /test/
 .env
 common/balancer/
-config.yaml
 dist
 test.yaml
 one-api
@@ -36,3 +35,4 @@ cliproxy/auth/
 
 # 打包文件
 one-hub-prod_*.tar.gz
+clash/config.yaml

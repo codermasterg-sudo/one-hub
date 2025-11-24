@@ -49,7 +49,7 @@ proxy-providers:
   # 主订阅源（必填）
   # 从您的机场获取 Clash 订阅链接后填写到下方 url 字段
   my-subscription:
-    type: file
+    type: http          # 使用 HTTP 模式，Clash 自动从 URL 下载订阅
     # ⚠️ 重要：请替换为您的实际订阅链接
     # 获取方式：登录机场 → 订阅中心 → 复制 Clash 订阅链接
     # 示例格式：https://sub.example.com/link/xxxxxxxxxxxx?clash=1
@@ -95,12 +95,12 @@ proxy-groups:
     # 匹配包含以下关键词的节点：美国、US、United States 等
     filter: "(?i)美国|US|United States|America|Los Angeles|San Francisco|Silicon Valley|New York|Seattle|Chicago"
 
-  # 🇭🇰 香港节点 - 备用
-  - name: "🇭🇰 香港节点"
+  # 🇸🇬 新加坡节点 - 备用
+  - name: "🇸🇬 新加坡节点"
     type: select            # 手动选择模式
     use:
       - my-subscription
-    filter: "(?i)香港|HK|Hong Kong|HongKong"
+    filter: "(?i)新加坡|SG|Singapore"
 
   # 🇯🇵 日本节点 - 备用
   - name: "🇯🇵 日本节点"
@@ -114,7 +114,7 @@ proxy-groups:
     type: select
     proxies:
       - "🇺🇸 美国节点"
-      - "🇭🇰 香港节点"
+      - "🇸🇬 新加坡节点"
       - "🇯🇵 日本节点"
       - DIRECT
     use:
@@ -131,7 +131,7 @@ proxy-groups:
     proxies:
       - "🇺🇸 美国节点"      # 首选：美国节点（固定IP）
       - "🚀 手动选择"        # 备选：手动选择
-      - "🇭🇰 香港节点"      # 备选：香港节点
+      - "🇸🇬 新加坡节点"      # 备选：新加坡节点
 
   # 🌐 OpenAI 专用
   - name: "🌐 OpenAI"
@@ -139,7 +139,7 @@ proxy-groups:
     proxies:
       - "🇺🇸 美国节点"
       - "🚀 手动选择"
-      - "🇭🇰 香港节点"
+      - "🇸🇬 新加坡节点"
 
   # 🌍 国际流量 - 其他国际服务
   - name: "🌍 国际流量"

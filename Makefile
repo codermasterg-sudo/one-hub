@@ -421,6 +421,14 @@ package: ## 打包生产环境部署文件
 	cp -r clash/*.yaml $$temp_dir/clash/ 2>/dev/null || true; \
 	cp -r clash/Dockerfile.* $$temp_dir/clash/ 2>/dev/null || true; \
 	cp -r clash/*.sh $$temp_dir/clash/ 2>/dev/null || true; \
+	\
+	echo "$(YELLOW)>>> 创建 Clash config.yaml...$(NC)"; \
+	if [ ! -f $$temp_dir/clash/config.yaml ]; then \
+		cp $$temp_dir/clash/config-subscription.yaml $$temp_dir/clash/config.yaml; \
+		echo "$(GREEN)✓ 已创建 clash/config.yaml$(NC)"; \
+	fi; \
+	\
+	echo "$(YELLOW)>>> 复制其他配置...$(NC)"; \
 	cp -r cliproxy/*.yaml $$temp_dir/cliproxy/ 2>/dev/null || true; \
 	cp -r scripts/*.sh $$temp_dir/scripts/ 2>/dev/null || true; \
 	\
