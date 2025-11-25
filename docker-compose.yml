@@ -71,6 +71,30 @@ services:
       - one-hub-network
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
 
+  # PostgreSQL - 用于 LobeChat 数据持久化（包含 pgvector 扩展）
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: postgres
+    restart: always
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+#    ports:
+#      - "5432:5432"
+    env_file:
+      - .env
+    environment:
+      - TZ=${TZ}
+      - POSTGRES_DB=${POSTGRES_DB:-lobechat}
+      - POSTGRES_USER=${POSTGRES_USER:-lobechat}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    networks:
+      - one-hub-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lobechat}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   clash:
     image: dreamacro/clash-premium:latest
     container_name: clash
@@ -120,6 +144,31 @@ services:
       - one-hub-network
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # LobeChat - 支持动态模型列表（使用本地文件存储）
+  lobechat:
+    image: lobehub/lobe-chat:latest
+    container_name: lobechat
+    restart: always
+    ports:
+      - "8002:3210"
+    volumes:
+      - ./data/lobechat:/app/.lobe
+    env_file:
+      - .env
+    environment:
+      - ACCESS_CODE=
+      - TZ=${TZ}
+      - PORT=3210
+    depends_on:
+      - one-hub
+    networks:
+      - one-hub-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3210/"]
       interval: 30s
       timeout: 10s
       retries: 3
